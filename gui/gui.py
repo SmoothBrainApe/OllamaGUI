@@ -12,7 +12,7 @@ class ChatApp:
 
         self.root = root
         self.root.title("Chat with Ollama")
-        self.root.geometry("1600x900")
+        self.root.geometry("1200x1000")
 
         self.bg = "#181818"
         self.fg = "#EFEFEF"
@@ -20,7 +20,9 @@ class ChatApp:
         self.selected_fg = "#ffffff"
         self.btn_bg = "#383838"
 
-        self.main_frame = tk.Frame(master=self.root, width=1600, height=900, bg=self.bg)
+        self.main_frame = tk.Frame(
+            master=self.root, width=1200, height=1000, bg=self.bg
+        )
         self.main_frame.pack(fill=tk.BOTH, expand=True)
 
         self.view_message_frame = tk.Frame(
@@ -101,13 +103,16 @@ class ChatApp:
 
     def send_message(self, event=None):
         user_prompt = str(self.user_input.get())
-        self.chat_history.append(f"User: {user_prompt}")
         self.user_input.delete(0, tk.END)
+        self.chat_history.append(f"User: {user_prompt}")
+
         generator = self.chat.simple_chat(self.chat_history)
+
         self.user_frame = tk.Frame(master=self.view_message_frame, bg=self.btn_bg)
         self.user_frame.pack(
             padx=5, pady=5, side=tk.BOTTOM, anchor=tk.E, before=self.response_frame
         )
+
         text_var = tk.StringVar()
         text_var.set(user_prompt)
 
@@ -119,10 +124,12 @@ class ChatApp:
             wraplength=self.view_message_frame.winfo_width() * 0.6,
         )
         self.user_label.pack(side=tk.RIGHT)
+
         self.response_frame = tk.Frame(master=self.view_message_frame, bg=self.btn_bg)
         self.response_frame.pack(
             padx=5, pady=5, side=tk.BOTTOM, anchor=tk.W, before=self.user_frame
         )
+
         self.response_label = tk.Label(
             master=self.response_frame,
             bg=self.btn_bg,
@@ -130,6 +137,7 @@ class ChatApp:
             wraplength=self.view_message_frame.winfo_width() * 0.6,
         )
         self.response_label.pack(side=tk.LEFT, anchor=tk.W)
+
         self.stream_response(generator=generator)
 
     def stream_response(self, generator):
