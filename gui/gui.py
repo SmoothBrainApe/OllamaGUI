@@ -129,7 +129,8 @@ class ChatApp:
         )
 
         self.menu.add_cascade(label="Options", menu=self.menu_item)
-        self.menu_item.add_cascade(label="Choose Models", menu=self.model_menu)
+        self.menu_item.add_cascade(label="Chat Models", menu=self.model_menu)
+        self.menu_item.add_cascade(label="Embed Models", menu=self.model_menu)
 
         self.menu_item.add_command(label="Settings", command=self.settings)
         self.menu_item.add_command(label="Exit", command=self.exit_window)
@@ -201,7 +202,16 @@ class ChatApp:
             self.chat_history.append(f"Assistant: {complete_message}")
 
     def populate_model_menu(self):
-        model_list = display_models()
+        all_models = display_models()
+        model_list = []
+        embed_list = []
+
+        for model in all_models:
+            if "embed" in model.lower():
+                embed_list.append(model)
+            else:
+                model_list.append(model)
+
         self.model_menu.delete(0, tk.END)
 
         for model in model_list:
@@ -224,10 +234,13 @@ class ChatApp:
 
     def settings(self):
         settings_window = tk.Toplevel(self.root)
-        settings_window.title("Settings")
+        settings_window.title("Modelfile")
         settings_window.geometry("500x300")
 
-        tk.Label(settings_window, text="Settings Window").pack()
+        settings_frame = tk.Frame(
+            master=settings_window, width=500, height=300, bg=self.bg
+        )
+        settings_frame.pack(fill=tk.BOTH, expand=True)
 
     def exit_window(self):
         self.root.destroy()
