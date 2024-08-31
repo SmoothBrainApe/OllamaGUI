@@ -1,8 +1,21 @@
 import ollama
 
 
+def display_models() -> list:
+    ollama_list = ollama.list()
+    models_dict = ollama_list["models"]
+
+    models = []
+    for model in models_dict:
+        model_data = model["name"]
+        model_name = model_data.split(":")
+        models.append(model_name[0])
+
+    return models
+
+
 class OllamChat:
-    def __init__(self, chat_model):
+    def __init__(self, chat_model=None):
         self.chat_model = chat_model
         self.embed_model = None
 
@@ -14,18 +27,6 @@ class OllamChat:
 
     def create_modelfile(self, name: str, modelfile: str):
         ollama.create(model=name, modelfile=modelfile)
-
-    def display_models(self) -> list:
-        ollama_list = ollama.list()
-        models_dict = ollama_list["models"]
-
-        models = []
-        for model in models_dict:
-            model_data = model["name"]
-            model_name = model_data.split(":")
-            models.append(model_name[0])
-
-        return models
 
     def simple_chat(self, prompt: list) -> str:
         if len(prompt) == 1:

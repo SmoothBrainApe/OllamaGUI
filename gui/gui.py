@@ -1,18 +1,18 @@
 import tkinter as tk
 import signal
 import atexit
-from backend.chat import OllamChat
+from backend.chat import OllamChat, display_models
 
 
 class ChatApp:
     def __init__(self, root):
         # self.root = tk.Tk()
-        self.chat = OllamChat("Test")
+        self.chat = None
         self.chat_history = []
 
         self.root = root
         self.root.title("Chat with Ollama")
-        self.root.geometry("1200x1000")
+        self.root.geometry("1200x900")
 
         self.bg = "#181818"
         self.fg = "#EFEFEF"
@@ -20,9 +20,7 @@ class ChatApp:
         self.selected_fg = "#ffffff"
         self.btn_bg = "#383838"
 
-        self.main_frame = tk.Frame(
-            master=self.root, width=1200, height=1000, bg=self.bg
-        )
+        self.main_frame = tk.Frame(master=self.root, width=1200, height=900, bg=self.bg)
         self.main_frame.pack(fill=tk.BOTH, expand=True)
 
         self.view_message_frame = tk.Frame(
@@ -32,10 +30,34 @@ class ChatApp:
             padx=5, pady=5, fill=tk.BOTH, side=tk.TOP, expand=True
         )
 
+        self.initial_frame = tk.Frame(
+            master=self.view_message_frame, width=50, height=50, bg=self.bg
+        )
+        self.initial_label = tk.Label(
+            master=self.initial_frame,
+            text="Choose a Model from the Options Above",
+            bg=self.bg,
+            fg=self.fg,
+        )
+        self.initial_frame.pack(padx=5, pady=5, fill=tk.BOTH, expand=True)
+        self.initial_label.pack(padx=5, pady=5, fill=tk.BOTH)
+
         self.send_message_frame = tk.Frame(
             master=self.main_frame, width=50, height=50, bg=self.bg
         )
         self.send_message_frame.pack(padx=5, pady=5, fill=tk.X, side=tk.BOTTOM)
+
+        self.clear_btn = tk.Button(
+            master=self.send_message_frame,
+            text="Clear",
+            command=self.clear_conversation,
+            bg=self.btn_bg,
+            fg=self.fg,
+            border=0,
+            activebackground=self.selected_bg,
+            activeforeground=self.selected_fg,
+        )
+        self.clear_btn.pack(side=tk.RIGHT, padx=5, pady=5)
 
         self.send_btn = tk.Button(
             master=self.send_message_frame,
@@ -49,12 +71,22 @@ class ChatApp:
         )
         self.send_btn.pack(side=tk.RIGHT, padx=5, pady=5)
 
+        self.model_used_label = tk.Label(
+            master=self.send_message_frame,
+            text="No Model Selected",
+            bg=self.bg,
+            fg=self.fg,
+            border=5,
+        )
+        self.model_used_label.pack(side=tk.RIGHT, padx=5, pady=5)
+
         self.user_input = tk.Entry(
             master=self.send_message_frame,
             width=50,
             bg=self.btn_bg,
             fg=self.fg,
             insertbackground=self.fg,
+            state=tk.DISABLED,
         )
         self.user_input.pack(side=tk.LEFT, padx=5, pady=5, fill=tk.X, expand=True)
         self.user_input.bind("<Return>", self.send_message)
@@ -63,7 +95,7 @@ class ChatApp:
         self.menu = tk.Menu(
             self.root,
             tearoff=False,
-            bg=self.bg,
+            bg=self.btn_bg,
             fg=self.fg,
             relief=tk.FLAT,
             border=0,
@@ -83,15 +115,32 @@ class ChatApp:
             activeborderwidth=0,
         )
 
+        self.model_menu = tk.Menu(
+            self.menu_item,
+            tearoff=False,
+            bg=self.btn_bg,
+            fg=self.fg,
+            relief=tk.FLAT,
+            border=0,
+            activebackground=self.selected_bg,
+            activeforeground=self.selected_fg,
+            activeborderwidth=0,
+            postcommand=self.populate_model_menu,
+        )
+
+        self.menu.add_cascade(label="Options", menu=self.menu_item)
+        self.menu_item.add_cascade(label="Choose Models", menu=self.model_menu)
+
+        self.menu_item.add_command(label="Settings", command=self.settings)
+        self.menu_item.add_command(label="Exit", command=self.exit_window)
+
+        self.root.config(menu=self.menu)
+
         self.user_frame = None
         self.user_label = None
         self.response_frame = None
         self.response_label = None
 
-        self.menu_item.add_command(label="Settings", command=self.settings)
-        self.menu_item.add_command(label="Exit", command=self.exit_window)
-
-        self.root.protocol("WM_DELETE_WINDOW", self.exit_window)
         atexit.register(self.exit_window)
         signal.signal(signal.SIGINT, self.exit_on_signal)
         signal.signal(signal.SIGTERM, self.exit_on_signal)
@@ -151,15 +200,34 @@ class ChatApp:
             complete_message = str(self.response_label.cget("text"))
             self.chat_history.append(f"Assistant: {complete_message}")
 
+    def populate_model_menu(self):
+        model_list = display_models()
+        self.model_menu.delete(0, tk.END)
+
+        for model in model_list:
+            self.model_menu.add_command(
+                label=model, command=lambda m=model: self.update_chat_model(m)
+            )
+
+    def update_chat_model(self, model: str):
+        self.clear_conversation()
+        self.chat = OllamChat(model)
+        self.model_used_label.config(text=str(model))
+        if self.user_input.cget("state") == tk.DISABLED:
+            self.user_input.config(state=tk.NORMAL)
+
     def clear_conversation(self):
         for widget in self.view_message_frame.winfo_children():
             if isinstance(widget, tk.Frame):
                 widget.destroy()
+        self.chat_history = []
 
     def settings(self):
         settings_window = tk.Toplevel(self.root)
         settings_window.title("Settings")
         settings_window.geometry("500x300")
+
+        tk.Label(settings_window, text="Settings Window").pack()
 
     def exit_window(self):
         self.root.destroy()
