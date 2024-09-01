@@ -3,3 +3,6 @@ __pycache__
 test.*
 modelfiles
 config.json
+log
+temp
+database

@@ -1,4 +1,5 @@
 import ollama
+import os
 
 
 def display_models() -> list:
@@ -17,7 +18,7 @@ def display_models() -> list:
 class OllamChat:
     def __init__(self, chat_model=None):
         self.chat_model = chat_model
-        self.embed_model = None
+        self.vision_model = None
 
     def pull_model(self, name: str):
         return ollama.pull(name)
@@ -28,24 +29,57 @@ class OllamChat:
     def create_modelfile(self, name: str, modelfile: str):
         ollama.create(model=name, modelfile=modelfile)
 
-    def simple_chat(self, prompt: list) -> str:
-        if len(prompt) == 1:
-            user_prompt = prompt[0]
-            message = [
-                {
-                    "role": "user",
-                    "content": user_prompt,
-                }
-            ]
+    def chat_loop(self, prompt: list, file: str = None, query_data: str = None) -> str:
+        if file and query_data:
+            file_ext = file.split(".")[-1]
+            img_ext = [".png", ".jpg", ".jpeg", ".bmp", ".gif"]
+            if file_ext in img_ext:
+                image_description = self.vision_model_chat(file)
+                if len(prompt) == 1:
+                    user_prompt = f"respond to this message naturally: '{prompt[0]}' using this provided data: '{image_description}'"
+                    message = [{"role": "user", "content": user_prompt}]
+                else:
+                    message_history = "\n".join(prompt[:-1]) + prompt[-1]
+                    user_message = prompt[-1]
+                    user_prompt = f"respond to this message naturally: '{user_message[6:]}' using this provided data: '{image_description}' while considering this chat history: {message_history}"
+                    message = [
+                        {
+                            "role": "user",
+                            "content": user_prompt,
+                        }
+                    ]
+            else:
+                if len(prompt) == 1:
+                    user_prompt = f"respond to this message naturally: '{prompt[0]}' using this provided data: '{query_data}'"
+                    message = [{"role": "user", "content": user_prompt}]
+                else:
+                    message_history = "\n".join(prompt[:-1]) + prompt[-1]
+                    user_message = prompt[-1]
+                    user_prompt = f"respond to this message naturally: '{user_message[6:]}' using this provided data: '{query_data}' while considering this chat history: '{message_history}'"
+                    message = [
+                        {
+                            "role": "user",
+                            "content": user_prompt,
+                        }
+                    ]
         else:
-            message_history = "\n".join(prompt[:-1]) + prompt[-1]
-            user_prompt = f"respond to this message {prompt[-1]} while considering this chat history: {message_history}"
-            message = [
-                {
-                    "role": "user",
-                    "content": user_prompt,
-                }
-            ]
+            if len(prompt) == 1:
+                message = [
+                    {
+                        "role": "user",
+                        "content": prompt[0],
+                    }
+                ]
+            else:
+                message_history = "\n".join(prompt[:-1]) + prompt[-1]
+                user_message = prompt[-1]
+                user_prompt = f"respond to this message naturally: '{user_message[6:]}' while considering this chat history: '{message_history}'"
+                message = [
+                    {
+                        "role": "user",
+                        "content": user_prompt,
+                    }
+                ]
         stream = ollama.chat(
             model=self.chat_model,
             messages=message,
@@ -55,7 +89,11 @@ class OllamChat:
         for word in stream:
             yield word["message"]["content"]
 
-    def embedding(self, prompt: str, model: str):
-        self.embed_model = model
-        response = ollama.embeddings(model=self.embed_model, prompt=prompt)
-        return response["embedding"]
+    def vision_model_chat(self, image):
+        model_list = display_models()
+        if "moondream" not in model_list:
+            ollama.pull("moondream")
+        prompt = f"Describe the image with as much detail as you can: {image}"
+        message = [{"role": "user", "content": prompt}]
+        response = ollama.chat(model="moondream", messages=message)
+        return response["message"]["content"]

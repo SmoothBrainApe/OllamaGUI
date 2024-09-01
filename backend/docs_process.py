@@ -1,22 +1,25 @@
 class Documents:
-    def __init__(self, f, chunk_size):
-        self.f = f
+    def __init__(self, docs, chunk_size):
+        self.docs = docs
+        self.contents = ""
         self.chunk_size = chunk_size
         self.cleaned_document = []
         self.chunk = []
         self.word_count = 0
 
-    def cleaning_process(self) -> str:
-        for line in self.f:
-            strip = line.strip()
-            if strip != "":
-                words = strip.split()
-                self.word_count += len(words)
-                self.chunk.append(strip)
-                if self.word_count >= self.chunk_size:
-                    self.cleaned_document.append(" ".join(self.chunk))
-                    self.chunk = []
-                    self.word_count = 0
-                elif self.word_count < self.chunk_size and self.word_count != 0:
-                    self.cleaned_document.append(" ".join(self.chunk))
+    def cleaning_process(self) -> list:
+        print("start document processing")
+        with open(self.docs, "r") as f:
+            for line in f:
+                if line != "":
+                    words = line.split()
+                    self.chunk.append(line)
+                    self.word_count += len(words)
+                    if self.word_count >= self.chunk_size:
+                        self.cleaned_document.append(" ".join(self.chunk))
+                        self.chunk = []
+                        self.word_count = 0
+            if self.word_count < self.chunk_size and self.word_count != 0:
+                self.cleaned_document.append(" ".join(self.chunk))
+        print("document processed")
         return self.cleaned_document

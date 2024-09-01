@@ -1,14 +1,27 @@
 import tkinter as tk
+from tkinter import filedialog
 import signal
 import atexit
+import shutil
+import os
+import json
+import glob
 from backend.chat import OllamChat, display_models
+from backend.database import Database
+from backend.docs_process import Documents
+from backend.utils import log_errors
 
 
 class ChatApp:
     def __init__(self, root):
-        # self.root = tk.Tk()
         self.chat = None
+        self.docs = None
+        self.db = None
+        self.file = None
         self.chat_history = []
+
+        with open("config.json", "r") as f:
+            self.config = json.load(f)
 
         self.root = root
         self.root.title("Chat with Ollama")
@@ -52,6 +65,18 @@ class ChatApp:
             side=tk.BOTTOM,
         )
         self.notice_label.pack(padx=5, pady=5, fill=tk.BOTH, side=tk.LEFT)
+
+        self.clear_btn = tk.Button(
+            master=self.send_message_frame,
+            text="Upload",
+            command=self.upload_file,
+            bg=self.btn_bg,
+            fg=self.fg,
+            border=0,
+            activebackground=self.selected_bg,
+            activeforeground=self.selected_fg,
+        )
+        self.clear_btn.pack(side=tk.RIGHT, padx=5, pady=5)
 
         self.clear_btn = tk.Button(
             master=self.send_message_frame,
@@ -119,6 +144,7 @@ class ChatApp:
             activebackground=self.selected_bg,
             activeforeground=self.selected_fg,
             activeborderwidth=0,
+            postcommand=self.populate_model_menu,
         )
 
         self.model_menu = tk.Menu(
@@ -131,27 +157,13 @@ class ChatApp:
             activebackground=self.selected_bg,
             activeforeground=self.selected_fg,
             activeborderwidth=0,
-            postcommand=self.populate_model_menu,
-        )
-
-        self.embed_menu = tk.Menu(
-            self.menu_item,
-            tearoff=False,
-            bg=self.btn_bg,
-            fg=self.fg,
-            relief=tk.FLAT,
-            border=0,
-            activebackground=self.selected_bg,
-            activeforeground=self.selected_fg,
-            activeborderwidth=0,
-            postcommand=self.populate_model_menu,
         )
 
         self.menu.add_cascade(label="Options", menu=self.menu_item)
         self.menu_item.add_cascade(label="Chat Models", menu=self.model_menu)
-        self.menu_item.add_cascade(label="Embed Models", menu=self.embed_menu)
 
         self.menu_item.add_command(label="Settings", command=self.settings)
+        self.menu_item.add_command(label="Modelfile", command=self.modelfile)
         self.menu_item.add_command(label="Exit", command=self.exit_window)
 
         self.root.config(menu=self.menu)
@@ -175,7 +187,18 @@ class ChatApp:
         self.user_input.delete(0, tk.END)
         self.chat_history.append(f"User: {user_prompt}")
 
-        generator = self.chat.simple_chat(self.chat_history)
+        if self.file:
+            if query_data:
+                query_data = self.db.retrieval(user_prompt)
+                generator = self.chat.chat_loop(
+                    prompt=self.chat_history, file=self.file, query_data=query_data
+                )
+            else:
+                generator = self.chat.chat_loop(
+                    prompt=self.chat_history, file=self.file
+                )
+        else:
+            generator = self.chat.chat_loop(self.chat_history)
 
         self.user_frame = tk.Frame(master=self.view_message_frame, bg=self.btn_bg)
         self.user_frame.pack(
@@ -222,25 +245,24 @@ class ChatApp:
 
     def populate_model_menu(self):
         all_models = display_models()
-        model_list = []
-        embed_list = []
+        chat_list = []
 
         for model in all_models:
-            if "embed" in model.lower():
-                embed_list.append(model)
-            else:
-                model_list.append(model)
+            if model != "moondream":
+                if "embed" not in model:
+                    chat_list.append(model)
+
+        chat_model_var = tk.StringVar()
 
         self.model_menu.delete(0, tk.END)
-        self.embed_menu.delete(0, tk.END)
 
-        for model in model_list:
-            self.model_menu.add_command(
-                label=model, command=lambda m=model: self.update_chat_model(m)
+        for model in chat_list:
+            self.model_menu.add_radiobutton(
+                label=model,
+                command=lambda m=model: self.update_chat_model(m),
+                variable=chat_model_var,
+                value=model,
             )
-
-        for model in embed_list:
-            self.embed_menu.add_command(label=model)
 
     def update_chat_model(self, model: str):
         self.clear_conversation()
@@ -248,19 +270,8 @@ class ChatApp:
         self.model_used_label.config(text=f"Model: {model}")
         if self.user_input.cget("state") == tk.DISABLED:
             self.user_input.config(state=tk.NORMAL)
-        for widget in self.notice_frame.winfo_children():
-            if isinstance(widget, tk.Label):
-                widget.destroy()
-        new_notice_label = tk.Label(
-            master=self.notice_frame,
-            text=f"Now using model {model}",
-            bg=self.btn_bg,
-            fg=self.fg,
-        )
-        new_notice_label.pack(padx=5, pady=5, fill=tk.BOTH, side=tk.LEFT)
-
-    def update_embed_model(self, model: str):
-        pass
+        notice = f"Now using model {model}"
+        self.new_notice(notice=notice)
 
     def clear_conversation(self):
         for widget in self.view_message_frame.winfo_children():
@@ -268,7 +279,69 @@ class ChatApp:
                 widget.destroy()
         self.chat_history = []
 
+    def new_notice(self, notice: str):
+        for widget in self.notice_frame.winfo_children():
+            if isinstance(widget, tk.Label):
+                widget.destroy()
+        new_notice_label = tk.Label(
+            master=self.notice_frame,
+            text=notice,
+            bg=self.btn_bg,
+            fg=self.fg,
+        )
+        new_notice_label.pack(padx=5, pady=5, fill=tk.BOTH, side=tk.LEFT)
+
+    def upload_file(self):
+        if self.chat:
+            doc_path = "temp"
+            if not os.path.exists(doc_path):
+                os.makedirs(doc_path)
+
+            file_path = filedialog.askopenfilename(
+                filetypes=[
+                    ("Files", ".txt .jpg .jpeg .png .bmp .gif"),
+                ]
+            )
+
+            if file_path:
+                if glob.glob(self.config["file"]):
+                    os.remove(glob.glob(self.config["file"])[0])
+
+                file_ext = os.path.splitext(file_path)[-1]
+                file_name = file_path.split("/")[-1].split(".")[0]
+
+                self.file = f"temp/temp{file_ext}"
+                shutil.copy(file_path, self.file)
+
+                img_ext = [".png", ".jpg", ".jpeg", ".bmp", ".gif"]
+
+                if file_ext not in img_ext:
+                    self.docs = Documents(self.file, self.config["chunk_size"])
+                    documents = self.docs.cleaning_process()
+                    self.db = Database(self.config["db_path"], documents)
+                    self.db.init_collection(self.file)
+                    self.db.embedding()
+
+                    notice = f"File {file_name} uploaded. Ready for query"
+                    self.new_notice(notice=notice)
+                else:
+                    notice = f"Image {file_name} uploaded"
+                    self.new_notice(notice=notice)
+        else:
+            notice = "Choose a chat model from options first!"
+            self.new_notice(notice=notice)
+
     def settings(self):
+        settings_window = tk.Toplevel(self.root)
+        settings_window.title("Settings")
+        settings_window.geometry("500x300")
+
+        settings_frame = tk.Frame(
+            master=settings_window, width=500, height=300, bg=self.bg
+        )
+        settings_frame.pack(fill=tk.BOTH, expand=True)
+
+    def modelfile(self):
         settings_window = tk.Toplevel(self.root)
         settings_window.title("Modelfile")
         settings_window.geometry("500x300")

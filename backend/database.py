@@ -1,20 +1,29 @@
 import chromadb
 import ollama
 import math
+import os
+from backend.chat import display_models
 
 
 class Database:
-    def __init__(self, db_path, embed_model, documents):
+    def __init__(self, db_path: str, documents: list):
+        model_list = display_models()
+        if "nomic-embed-text" not in model_list:
+            ollama.pull("nomic-embed-text")
         self.db_path = db_path
         self.collection = None
-        self.embed_model = embed_model
+        self.embed_model = "nomic-embed-text"
         self.documents = documents
         try:
+            if not os.path.exists(self.db_path):
+                os.makedirs(self.db_path)
             self.db = chromadb.PersistentClient(path=self.db_path)
+            print("Database created")
         except Exception as e:
             print(f"Error has occured: {e}")
 
-    def init_collection(self, file):
+    def init_collection(self, file: str):
+        print("Collection created")
         file_name = file.split("/")[-1]
         name = file_name.split(".")[0]
         try:
@@ -29,22 +38,19 @@ class Database:
             try:
                 embed_response = ollama.embeddings(model=self.embed_model, prompt=docs)
                 embed = embed_response["embedding"]
-                self.collection.upsert(ids=str(i), embeddings=[embed], documents=docs)
+                self.collection.upsert(ids=str(i), embeddings=[embed], documents=[docs])
             except Exception as e:
-                print(f"Error has occured: {e}")
+                print(f"Error embedding document {i}: {e}")
+        print("All embeddings created")
 
-    def retrieval(self, message: list) -> str:
-        try:
-            prompt = message[-1]["content"]
-            n_results = math.floor(len(self.documents) / 4) * 3
-            retrieve_response = ollama.embeddings(model=self.embed_model, prompt=prompt)
-            retrieve_results = self.collection.query(
-                query_embeddings=[retrieve_response["embedding"]],
-                n_results=n_results,
-            )
-            lines = retrieve_results["documents"][0]
-            retrieved_data = "\n".join(lines)
-            return retrieved_data
-        except Exception as e:
-            print(f"Error has occured: {e}")
-            return None
+    def retrieval(self, prompt: str) -> str:
+        n_results = math.floor(len(self.documents) / 8)
+        retrieve_response = ollama.embeddings(model=self.embed_model, prompt=prompt)
+        retrieve_results = self.collection.query(
+            query_embeddings=[retrieve_response["embedding"]],
+            n_results=n_results,
+        )
+        lines = retrieve_results["documents"][0]
+        retrieved_data = "\n".join(lines)
+        print("query data retrieved")
+        return retrieved_data
