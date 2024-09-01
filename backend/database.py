@@ -27,9 +27,7 @@ class Database:
         file_name = file.split("/")[-1]
         name = file_name.split(".")[0]
         try:
-            self.collection = self.db.create_collection(name=name)
-        except chromadb.db.base.UniqueConstraintError:
-            self.collection = self.db.get_collection(name=name)
+            self.collection = self.db.get_or_create_collection(name=name)
         except Exception as e:
             print(f"Error has occured: {e}")
 
