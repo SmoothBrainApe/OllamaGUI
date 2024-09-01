@@ -1,7 +1,6 @@
 import tkinter as tk
 from tkinter import filedialog
 import signal
-import atexit
 import shutil
 import os
 import json
@@ -173,14 +172,10 @@ class ChatApp:
         self.response_frame = None
         self.response_label = None
 
-        atexit.register(self.exit_window)
+        self.root.protocol("WM_DELETE_WINDOW", self.exit_window)
         signal.signal(signal.SIGINT, self.exit_on_signal)
         signal.signal(signal.SIGTERM, self.exit_on_signal)
         signal.signal(signal.SIGABRT, self.exit_on_signal)
-        signal.signal(signal.SIGSEGV, self.exit_on_signal)
-        signal.signal(signal.SIGBUS, self.exit_on_signal)
-        signal.signal(signal.SIGFPE, self.exit_on_signal)
-        signal.signal(signal.SIGILL, self.exit_on_signal)
 
     def send_message(self, event=None):
         user_prompt = str(self.user_input.get())
@@ -188,7 +183,9 @@ class ChatApp:
         self.chat_history.append(f"User: {user_prompt}")
 
         if self.file:
-            if query_data:
+            img_ext = ["png", "jpg", "jpeg", "bmp", "gif"]
+            file_ext = self.file.split("/")[-1].split(".")[-1]
+            if file_ext not in img_ext:
                 query_data = self.db.retrieval(user_prompt)
                 generator = self.chat.chat_loop(
                     prompt=self.chat_history, file=self.file, query_data=query_data
@@ -352,7 +349,23 @@ class ChatApp:
         settings_frame.pack(fill=tk.BOTH, expand=True)
 
     def exit_window(self):
+        if glob.glob(self.config["file"]):
+            file = glob.glob(self.config["file"])[0]
+
+            if os.path.exists(file):
+                os.remove(file)
+
+        if os.path.exists(self.config["db_path"]):
+            shutil.rmtree(self.config["db_path"])
         self.root.destroy()
 
     def exit_on_signal(self, sig, frame):
+        if glob.glob(self.config["file"]):
+            file = glob.glob(self.config["file"])[0]
+
+            if os.path.exists(file):
+                os.remove(file)
+
+        if os.path.exists(self.config["db_path"]):
+            shutil.rmtree(self.config["db_path"])
         self.root.destroy()

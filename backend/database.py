@@ -26,10 +26,15 @@ class Database:
         print("Collection created")
         file_name = file.split("/")[-1]
         name = file_name.split(".")[0]
-        try:
-            self.collection = self.db.get_or_create_collection(name=name)
-        except Exception as e:
-            print(f"Error has occured: {e}")
+        while True:
+            try:
+                self.collection = self.db.create_collection(name=name)
+                break
+            except chromadb.db.base.UniqueConstraintError:
+                self.db.delete_collection(name=name)
+            except Exception as e:
+                print(f"Error has occured: {e}")
+                break
 
     def embedding(self):
         for i, docs in enumerate(self.documents):
