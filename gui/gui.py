@@ -19,33 +19,39 @@ class ChatApp:
         self.selected_bg = "#4A4A4A"
         self.selected_fg = "#ffffff"
         self.btn_bg = "#383838"
+        self.warning_fg = "#ff6e91"
 
         self.main_frame = tk.Frame(master=self.root, width=1200, height=900, bg=self.bg)
         self.main_frame.pack(fill=tk.BOTH, expand=True)
 
         self.view_message_frame = tk.Frame(
-            master=self.main_frame, width=50, height=50, bg=self.bg
+            master=self.main_frame, width=1200, height=50, bg=self.bg
         )
         self.view_message_frame.pack(
             padx=5, pady=5, fill=tk.BOTH, side=tk.TOP, expand=True
         )
 
-        self.initial_frame = tk.Frame(
-            master=self.view_message_frame, width=50, height=50, bg=self.bg
-        )
-        self.initial_label = tk.Label(
-            master=self.initial_frame,
-            text="Choose a Model from the Options Above",
-            bg=self.bg,
-            fg=self.fg,
-        )
-        self.initial_frame.pack(padx=5, pady=5, fill=tk.BOTH, expand=True)
-        self.initial_label.pack(padx=5, pady=5, fill=tk.BOTH)
-
         self.send_message_frame = tk.Frame(
-            master=self.main_frame, width=50, height=50, bg=self.bg
+            master=self.main_frame, width=1200, height=50, bg=self.bg
         )
         self.send_message_frame.pack(padx=5, pady=5, fill=tk.X, side=tk.BOTTOM)
+
+        self.notice_frame = tk.Frame(
+            master=self.main_frame, width=1200, height=50, bg=self.btn_bg
+        )
+        self.notice_label = tk.Label(
+            master=self.notice_frame,
+            text="Choose a Model from the Options",
+            bg=self.btn_bg,
+            fg=self.warning_fg,
+        )
+        self.notice_frame.pack(
+            padx=5,
+            pady=5,
+            fill=tk.X,
+            side=tk.BOTTOM,
+        )
+        self.notice_label.pack(padx=5, pady=5, fill=tk.BOTH, side=tk.LEFT)
 
         self.clear_btn = tk.Button(
             master=self.send_message_frame,
@@ -73,7 +79,7 @@ class ChatApp:
 
         self.model_used_label = tk.Label(
             master=self.send_message_frame,
-            text="No Model Selected",
+            text="Model: Empty",
             bg=self.bg,
             fg=self.fg,
             border=5,
@@ -128,9 +134,22 @@ class ChatApp:
             postcommand=self.populate_model_menu,
         )
 
+        self.embed_menu = tk.Menu(
+            self.menu_item,
+            tearoff=False,
+            bg=self.btn_bg,
+            fg=self.fg,
+            relief=tk.FLAT,
+            border=0,
+            activebackground=self.selected_bg,
+            activeforeground=self.selected_fg,
+            activeborderwidth=0,
+            postcommand=self.populate_model_menu,
+        )
+
         self.menu.add_cascade(label="Options", menu=self.menu_item)
         self.menu_item.add_cascade(label="Chat Models", menu=self.model_menu)
-        self.menu_item.add_cascade(label="Embed Models", menu=self.model_menu)
+        self.menu_item.add_cascade(label="Embed Models", menu=self.embed_menu)
 
         self.menu_item.add_command(label="Settings", command=self.settings)
         self.menu_item.add_command(label="Exit", command=self.exit_window)
@@ -213,18 +232,35 @@ class ChatApp:
                 model_list.append(model)
 
         self.model_menu.delete(0, tk.END)
+        self.embed_menu.delete(0, tk.END)
 
         for model in model_list:
             self.model_menu.add_command(
                 label=model, command=lambda m=model: self.update_chat_model(m)
             )
 
+        for model in embed_list:
+            self.embed_menu.add_command(label=model)
+
     def update_chat_model(self, model: str):
         self.clear_conversation()
         self.chat = OllamChat(model)
-        self.model_used_label.config(text=str(model))
+        self.model_used_label.config(text=f"Model: {model}")
         if self.user_input.cget("state") == tk.DISABLED:
             self.user_input.config(state=tk.NORMAL)
+        for widget in self.notice_frame.winfo_children():
+            if isinstance(widget, tk.Label):
+                widget.destroy()
+        new_notice_label = tk.Label(
+            master=self.notice_frame,
+            text=f"Now using model {model}",
+            bg=self.btn_bg,
+            fg=self.fg,
+        )
+        new_notice_label.pack(padx=5, pady=5, fill=tk.BOTH, side=tk.LEFT)
+
+    def update_embed_model(self, model: str):
+        pass
 
     def clear_conversation(self):
         for widget in self.view_message_frame.winfo_children():
