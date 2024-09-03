@@ -6,10 +6,16 @@ import os
 import json
 import glob
 from PIL import Image, ImageTk
-from backend.chat import OllamChat, display_models
+from backend.chat import OllamChat
 from backend.database import Database
 from backend.docs_process import Documents
-from backend.utils import log_errors
+from backend.utils import (
+    display_models,
+    display_modelfile,
+    create_modelfile,
+    get_system_prompt,
+    logging,
+)
 
 
 class ChatApp:
@@ -75,39 +81,24 @@ class ChatApp:
         )
         self.notice_label.pack(padx=5, pady=5, fill=tk.BOTH, side=tk.LEFT)
 
-        self.upload_btn = tk.Button(
+        self.upload_btn = self.create_button(
             master=self.send_message_frame,
             text="Upload",
             command=self.upload_file,
-            bg=self.btn_bg,
-            fg=self.fg,
-            border=0,
-            activebackground=self.selected_bg,
-            activeforeground=self.selected_fg,
         )
         self.upload_btn.pack(side=tk.RIGHT, padx=5, pady=5)
 
-        self.clear_btn = tk.Button(
+        self.clear_btn = self.create_button(
             master=self.send_message_frame,
             text="Clear",
             command=self.clear_conversation,
-            bg=self.btn_bg,
-            fg=self.fg,
-            border=0,
-            activebackground=self.selected_bg,
-            activeforeground=self.selected_fg,
         )
         self.clear_btn.pack(side=tk.RIGHT, padx=5, pady=5)
 
-        self.send_btn = tk.Button(
+        self.send_btn = self.create_button(
             master=self.send_message_frame,
             text="Send",
             command=self.send_message,
-            bg=self.btn_bg,
-            fg=self.fg,
-            border=0,
-            activebackground=self.selected_bg,
-            activeforeground=self.selected_fg,
         )
         self.send_btn.pack(side=tk.RIGHT, padx=5, pady=5)
 
@@ -172,7 +163,6 @@ class ChatApp:
         self.menu_item.add_cascade(label="Chat Models", menu=self.model_menu)
 
         self.menu_item.add_command(label="Settings", command=self.settings)
-        self.menu_item.add_command(label="Modelfile", command=self.modelfile)
         self.menu_item.add_command(label="Exit", command=self.exit_window)
 
         self.root.config(menu=self.menu)
@@ -182,6 +172,11 @@ class ChatApp:
         self.response_frame = None
         self.response_label = None
         self.unload_btn = None
+        self.modelfile_current_frame = None
+        self.settings_frame = None
+        self.file_frame = None
+        self.pull_frame = None
+        self.pull_system_textbox = None
 
         self.root.protocol("WM_DELETE_WINDOW", self.exit_window)
         signal.signal(signal.SIGINT, self.exit_on_signal)
@@ -268,6 +263,10 @@ class ChatApp:
                     vision_list.append(model)
             else:
                 vision_list.append(model)
+
+        if not chat_list:
+            notice = "There are no models for chat. Please pull a model from Ollama."
+            self.new_notice(notice=notice)
 
         chat_model_var = tk.StringVar()
 
@@ -370,15 +369,10 @@ class ChatApp:
                     notice = f"Image {file_name} uploaded"
                     self.new_notice(notice=notice)
 
-                self.unload_btn = tk.Button(
+                self.unload_btn = self.create_button(
                     master=self.send_message_frame,
                     text="Remove File",
                     command=self.remove_file,
-                    bg=self.btn_bg,
-                    fg=self.fg,
-                    border=0,
-                    activebackground=self.selected_bg,
-                    activeforeground=self.selected_fg,
                 )
                 self.unload_btn.pack(
                     side=tk.RIGHT, padx=5, pady=5, before=self.upload_btn
@@ -396,44 +390,172 @@ class ChatApp:
         notice = "File removed"
         self.new_notice(notice=notice)
 
+    def create_button(self, master, text, command):
+        return tk.Button(
+            master=master,
+            text=text,
+            command=command,
+            bg=self.btn_bg,
+            fg=self.fg,
+            border=0,
+            activebackground=self.selected_bg,
+            activeforeground=self.selected_fg,
+        )
+
     def settings(self):
         settings_window = tk.Toplevel(self.root)
         settings_window.title("Settings")
-        settings_window.geometry("500x300")
+        settings_window.geometry("1000x800")
 
-        settings_frame = tk.Frame(
-            master=settings_window, width=500, height=300, bg=self.bg
+        button_frame = tk.Frame(
+            master=settings_window, width=1000, height=50, bg=self.btn_bg
         )
-        settings_frame.pack(fill=tk.BOTH, expand=True)
+        button_frame.pack(side=tk.TOP, fill=tk.X)
 
-    def modelfile(self):
-        settings_window = tk.Toplevel(self.root)
-        settings_window.title("Modelfile")
-        settings_window.geometry("500x300")
+        # Add settings parameters and windows
 
-        settings_frame = tk.Frame(
-            master=settings_window, width=500, height=300, bg=self.bg
+        self.settings_frame = tk.Frame(
+            master=settings_window, height=550, width=1000, bg=self.bg
         )
-        settings_frame.pack(fill=tk.BOTH, expand=True)
+        self.settings_frame.pack(fill=tk.BOTH, side=tk.BOTTOM, expand=True)
+
+        # General Config Settings here
+
+        self.pull_frame = tk.Frame(
+            master=settings_window, height=550, width=1000, bg=self.bg
+        )
+        pull_parameter_frame = tk.Frame(
+            master=self.pull_frame,
+            bg=self.bg,
+            height=200,
+            highlightbackground=self.fg,
+            highlightthickness=2,
+        )
+        pull_system_frame = tk.Frame(
+            master=self.pull_frame,
+            bg=self.bg,
+            height=10,
+            highlightbackground=self.fg,
+            highlightthickness=2,
+        )
+        pull_parameter_frame.pack(fill=tk.X, side=tk.TOP)
+        pull_system_frame.pack(fill=tk.BOTH, side=tk.TOP, expand=True)
+
+        pull_system_label = tk.Label(
+            master=pull_system_frame, text="System Prompt", bg=self.bg, fg=self.fg
+        )
+        pull_system_label.pack(side=tk.TOP, anchor=tk.W)
+        pull_system_btn = self.create_button(
+            master=pull_system_frame, text="Save", command=self.save_modelfile_pull
+        )
+        pull_system_btn.pack(side=tk.TOP, anchor=tk.W)
+        self.pull_system_textbox = tk.Text(
+            master=pull_system_frame,
+            height=10,
+            bg=self.btn_bg,
+            fg=self.fg,
+            insertbackground=self.fg,
+        )
+        self.pull_system_textbox.pack(fill=tk.BOTH, side=tk.TOP, expand=True)
+        current_model = self.model_used_label.cget("text")
+        model_name = current_model.split(" ")[-1]
+        current_modelfile = display_modelfile(model_name)
+        system_prompt = get_system_prompt(current_modelfile)
+        if system_prompt:
+            self.pull_system_textbox.insert(
+                tk.END,
+                system_prompt,
+            )
+        # Parameters and System Message here
+
+        self.file_frame = tk.Frame(
+            master=settings_window, height=550, width=1000, bg=self.bg
+        )
+        file_parameter_frame = tk.Frame(
+            master=self.file_frame,
+            bg=self.bg,
+            height=200,
+            highlightbackground=self.fg,
+            highlightthickness=2,
+        )
+        file_template_frame = tk.Frame(
+            master=self.file_frame,
+            bg=self.bg,
+            width=10,
+            highlightbackground=self.fg,
+            highlightthickness=2,
+        )
+        file_system_frame = tk.Frame(
+            master=self.file_frame,
+            bg=self.bg,
+            width=10,
+            highlightbackground=self.fg,
+            highlightthickness=2,
+        )
+        file_parameter_frame.pack(fill=tk.X, side=tk.TOP)
+        file_template_frame.pack(fill=tk.BOTH, side=tk.LEFT, expand=True)
+        file_system_frame.pack(fill=tk.BOTH, side=tk.LEFT, expand=True)
+
+        # Choose file, parameters, template and system message here
+
+        settings_button = self.create_button(
+            master=button_frame,
+            text="General Settings",
+            command=self.show_settings,
+        )
+        settings_button.pack(side=tk.LEFT, padx=5, pady=5)
+        pull_button = self.create_button(
+            master=button_frame,
+            text="From PULL",
+            command=self.show_pull,
+        )
+        pull_button.pack(side=tk.LEFT, padx=5, pady=5)
+        file_button = self.create_button(
+            master=button_frame,
+            text="From FILE",
+            command=self.show_file,
+        )
+        file_button.pack(side=tk.LEFT, padx=5, pady=5)
+
+        self.modelfile_current_frame = self.settings_frame
+
+    def save_modelfile_pull(self):
+        system_prompt = self.pull_system_textbox.get("1.0", tk.END)
+
+    def save_modelfile_file(self):
+        pass
+
+    def save_settings(self):
+        pass
+
+    def switch_frame(self, new_frame):
+        if self.modelfile_current_frame != new_frame:
+            self.modelfile_current_frame.pack_forget()
+            new_frame.pack(fill=tk.BOTH, side=tk.BOTTOM, expand=True)
+            self.modelfile_current_frame = new_frame
+
+    def show_settings(self):
+        self.switch_frame(self.settings_frame)
+
+    def show_pull(self):
+        self.switch_frame(self.pull_frame)
+
+    def show_file(self):
+        self.switch_frame(self.file_frame)
+
+    def exit_function(self):
+        if glob.glob(self.config["file"]):
+            file = glob.glob(self.config["file"])[0]
+
+            if os.path.exists(file):
+                os.remove(file)
+
+        if os.path.exists(self.config["db_path"]):
+            shutil.rmtree(self.config["db_path"])
+        self.root.destroy()
 
     def exit_window(self):
-        if glob.glob(self.config["file"]):
-            file = glob.glob(self.config["file"])[0]
-
-            if os.path.exists(file):
-                os.remove(file)
-
-        if os.path.exists(self.config["db_path"]):
-            shutil.rmtree(self.config["db_path"])
-        self.root.destroy()
+        self.exit_function()
 
     def exit_on_signal(self, sig, frame):
-        if glob.glob(self.config["file"]):
-            file = glob.glob(self.config["file"])[0]
-
-            if os.path.exists(file):
-                os.remove(file)
-
-        if os.path.exists(self.config["db_path"]):
-            shutil.rmtree(self.config["db_path"])
-        self.root.destroy()
+        self.exit_function()

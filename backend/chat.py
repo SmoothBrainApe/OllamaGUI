@@ -1,4 +1,5 @@
 import ollama
+from backend.utils import display_models
 
 
 class OllamChat:
@@ -71,36 +72,12 @@ class OllamChat:
             model_list = display_models()
             vision_model = "moondream"
             if vision_model not in model_list:
+                print(f"Downloading vision model: {vision_model}")
                 ollama.pull(vision_model)
+                print(f"Vision Model downloaded: {vision_model}")
             prompt = "Describe the image with as much detail as you can"
             response = ollama.generate(
                 model=vision_model, prompt=prompt, images=[images]
             )
             print(response["response"])
             return response["response"]
-
-
-def display_models() -> list:
-    ollama_list = ollama.list()
-    models_dict = ollama_list["models"]
-
-    models = []
-    for model in models_dict:
-        model_data = model["name"]
-        model_name = model_data.split(":")
-        models.append(model_name[0])
-
-    return models
-
-
-def pull_model(model_name: str) -> str:
-    ollama.pull(model_name)
-    return f"Model {model_name} pulled successfully!"
-
-
-def show_model(self, model_name: str):
-    return ollama.show(model_name)
-
-
-def create_modelfile(self, model_name: str, modelfile: str):
-    ollama.create(model=model_name, modelfile=modelfile)

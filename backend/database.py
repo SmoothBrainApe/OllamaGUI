@@ -2,14 +2,16 @@ import chromadb
 import ollama
 import math
 import os
-from backend.chat import display_models
+from backend.utils import display_models
 
 
 class Database:
     def __init__(self, db_path: str, documents: list):
         model_list = display_models()
         if "nomic-embed-text" not in model_list:
-            ollama.pull("nomic-embed-text")
+            print(f"Downloading vision model: {self.embed_model}")
+            ollama.pull(self.embed_model)
+            print(f"Vision Model downloaded: {self.embed_model}")
         self.db_path = db_path
         self.collection = None
         self.embed_model = "nomic-embed-text"
