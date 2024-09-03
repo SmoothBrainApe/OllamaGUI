@@ -10,11 +10,11 @@ Todo
 
 [x] Chat History
 
-[ ] Setup database
+[x] Setup database
 
-[ ] Setup RAG
+[x] Setup RAG
 
-[ ] Add vision model
+[x] Add vision model
 
 [ ] Allow parameter settings
 

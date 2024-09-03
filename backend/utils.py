@@ -1,6 +1,5 @@
 import os
 import logging
-import json
 
 
 def log_errors(log: str):

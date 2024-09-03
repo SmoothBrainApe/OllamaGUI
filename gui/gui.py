@@ -5,6 +5,7 @@ import shutil
 import os
 import json
 import glob
+from PIL import Image, ImageTk
 from backend.chat import OllamChat, display_models
 from backend.database import Database
 from backend.docs_process import Documents
@@ -18,6 +19,15 @@ class ChatApp:
         self.db = None
         self.file = None
         self.chat_history = []
+
+        if not os.path.exists("config.json"):
+            with open("config.json", "w") as f:
+                default_config = {
+                    "db_path": "database",
+                    "file": "temp/*",
+                    "chunk_size": 50,
+                }
+                json.dump(default_config, f)
 
         with open("config.json", "r") as f:
             self.config = json.load(f)
@@ -65,7 +75,7 @@ class ChatApp:
         )
         self.notice_label.pack(padx=5, pady=5, fill=tk.BOTH, side=tk.LEFT)
 
-        self.clear_btn = tk.Button(
+        self.upload_btn = tk.Button(
             master=self.send_message_frame,
             text="Upload",
             command=self.upload_file,
@@ -75,7 +85,7 @@ class ChatApp:
             activebackground=self.selected_bg,
             activeforeground=self.selected_fg,
         )
-        self.clear_btn.pack(side=tk.RIGHT, padx=5, pady=5)
+        self.upload_btn.pack(side=tk.RIGHT, padx=5, pady=5)
 
         self.clear_btn = tk.Button(
             master=self.send_message_frame,
@@ -171,6 +181,7 @@ class ChatApp:
         self.user_label = None
         self.response_frame = None
         self.response_label = None
+        self.unload_btn = None
 
         self.root.protocol("WM_DELETE_WINDOW", self.exit_window)
         signal.signal(signal.SIGINT, self.exit_on_signal)
@@ -243,11 +254,20 @@ class ChatApp:
     def populate_model_menu(self):
         all_models = display_models()
         chat_list = []
+        embed_list = []
+        vision_list = []
 
         for model in all_models:
             if model != "moondream":
-                if "embed" not in model:
-                    chat_list.append(model)
+                if "llava" not in model:
+                    if "embed" not in model:
+                        chat_list.append(model)
+                    else:
+                        embed_list.append(model)
+                else:
+                    vision_list.append(model)
+            else:
+                vision_list.append(model)
 
         chat_model_var = tk.StringVar()
 
@@ -322,11 +342,59 @@ class ChatApp:
                     notice = f"File {file_name} uploaded. Ready for query"
                     self.new_notice(notice=notice)
                 else:
+                    self.user_frame = tk.Frame(
+                        master=self.view_message_frame, bg=self.btn_bg
+                    )
+                    self.user_frame.pack(
+                        padx=5,
+                        pady=5,
+                        side=tk.BOTTOM,
+                        anchor=tk.E,
+                        before=self.response_frame,
+                    )
+
+                    pil_image = Image.open(self.file)
+                    image_size = (400, 400)
+                    pil_image.thumbnail(image_size)
+                    tk_image = ImageTk.PhotoImage(pil_image)
+                    self.user_label = tk.Label(
+                        master=self.user_frame,
+                        image=tk_image,
+                        bg=self.btn_bg,
+                        fg=self.fg,
+                        wraplength=self.view_message_frame.winfo_width() * 0.6,
+                    )
+                    self.user_label.image = tk_image
+                    self.user_label.pack(side=tk.RIGHT)
+
                     notice = f"Image {file_name} uploaded"
                     self.new_notice(notice=notice)
+
+                self.unload_btn = tk.Button(
+                    master=self.send_message_frame,
+                    text="Remove File",
+                    command=self.remove_file,
+                    bg=self.btn_bg,
+                    fg=self.fg,
+                    border=0,
+                    activebackground=self.selected_bg,
+                    activeforeground=self.selected_fg,
+                )
+                self.unload_btn.pack(
+                    side=tk.RIGHT, padx=5, pady=5, before=self.upload_btn
+                )
         else:
             notice = "Choose a chat model from options first!"
             self.new_notice(notice=notice)
+
+    def remove_file(self):
+        file = glob.glob("temp/*")
+        if file:
+            os.remove(file[0])
+
+        self.unload_btn.destroy()
+        notice = "File removed"
+        self.new_notice(notice=notice)
 
     def settings(self):
         settings_window = tk.Toplevel(self.root)

@@ -1,33 +1,10 @@
 import ollama
-import os
-
-
-def display_models() -> list:
-    ollama_list = ollama.list()
-    models_dict = ollama_list["models"]
-
-    models = []
-    for model in models_dict:
-        model_data = model["name"]
-        model_name = model_data.split(":")
-        models.append(model_name[0])
-
-    return models
 
 
 class OllamChat:
     def __init__(self, chat_model=None):
         self.chat_model = chat_model
         self.vision_model = None
-
-    def pull_model(self, name: str):
-        return ollama.pull(name)
-
-    def show_model(self, name: str):
-        return ollama.show(name)
-
-    def create_modelfile(self, name: str, modelfile: str):
-        ollama.create(model=name, modelfile=modelfile)
 
     def chat_loop(self, prompt: list, file: str = None, query_data: str = None) -> str:
         if file:
@@ -101,3 +78,29 @@ class OllamChat:
             )
             print(response["response"])
             return response["response"]
+
+
+def display_models() -> list:
+    ollama_list = ollama.list()
+    models_dict = ollama_list["models"]
+
+    models = []
+    for model in models_dict:
+        model_data = model["name"]
+        model_name = model_data.split(":")
+        models.append(model_name[0])
+
+    return models
+
+
+def pull_model(model_name: str) -> str:
+    ollama.pull(model_name)
+    return f"Model {model_name} pulled successfully!"
+
+
+def show_model(self, model_name: str):
+    return ollama.show(model_name)
+
+
+def create_modelfile(self, model_name: str, modelfile: str):
+    ollama.create(model=model_name, modelfile=modelfile)
