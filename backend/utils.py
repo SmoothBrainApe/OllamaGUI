@@ -71,7 +71,7 @@ def display_modelfile(model_name: str) -> str:
     return modelfile_text
 
 
-def split_modelfile(modelfile: str) -> str:
+def split_modelfile(modelfile: str) -> str | tuple[str, str, str, str]:
     split_contents = modelfile.split("\n\n")
     model_source = split_contents[0]
     parameter = None
@@ -90,6 +90,31 @@ def split_modelfile(modelfile: str) -> str:
         return model_source, parameter, template, system
     else:
         return model_source
+
+
+def parse_parameters(parameters: str) -> tuple[str, str, str, str, str, list[str]]:
+    temperature = ""
+    top_k = ""
+    top_p = ""
+    num_ctx = ""
+    num_gpu = ""
+    stop = []
+    split_parameters = parameters.splitlines()
+    for parameter in split_parameters:
+        if "temperature" in parameter:
+            temperature = parameter
+        elif "top_k" in parameter:
+            top_k = parameter
+        elif "top_p" in parameter:
+            top_p = parameter
+        elif "num_ctx" in parameter:
+            num_ctx = parameter
+        elif "num_gpu" in parameter:
+            num_gpu = parameter
+        elif "stop" in parameter:
+            stop.append(parameter)
+
+    return temperature, top_k, top_p, num_ctx, num_gpu, stop
 
 
 def get_system_prompt(system: str) -> str:

@@ -16,6 +16,7 @@ from backend.utils import (
     get_system_prompt,
     get_template,
     split_modelfile,
+    parse_parameters,
     logging,
 )
 
@@ -177,6 +178,13 @@ class ChatApp:
         self.modelfile_current_frame = None
         self.settings_frame = None
         self.modelfil_frame = None
+        self.temp_entry = None
+        self.topk_entry = None
+        self.topp_entry = None
+        self.ctx_entry = None
+        self.gpu_entry = None
+        self.stop_entry = None
+        self.stop_listbox = None
         self.template_textbox = None
         self.system_textbox = None
 
@@ -459,7 +467,110 @@ class ChatApp:
         parameter_frame.pack(fill=tk.X, side=tk.TOP)
         template_frame.pack(fill=tk.BOTH, side=tk.LEFT, expand=True)
         system_frame.pack(fill=tk.BOTH, side=tk.LEFT, expand=True)
-        # Parameters and System Message here
+
+        temp_label = tk.Label(
+            master=parameter_frame, text="Temperature", bg=self.bg, fg=self.fg
+        )
+        self.temp_entry = tk.Entry(
+            master=parameter_frame,
+            bg=self.btn_bg,
+            fg=self.fg,
+            insertbackground=self.fg,
+        )
+        topk_label = tk.Label(
+            master=parameter_frame, text="Top_k", bg=self.bg, fg=self.fg
+        )
+        self.topk_entry = tk.Entry(
+            master=parameter_frame,
+            bg=self.btn_bg,
+            fg=self.fg,
+            insertbackground=self.fg,
+        )
+        topp_label = tk.Label(
+            master=parameter_frame, text="Top_p", bg=self.bg, fg=self.fg
+        )
+        self.topp_entry = tk.Entry(
+            master=parameter_frame,
+            bg=self.btn_bg,
+            fg=self.fg,
+            insertbackground=self.fg,
+        )
+        ctx_label = tk.Label(
+            master=parameter_frame, text="num_ctx", bg=self.bg, fg=self.fg
+        )
+        self.ctx_entry = tk.Entry(
+            master=parameter_frame,
+            bg=self.btn_bg,
+            fg=self.fg,
+            insertbackground=self.fg,
+        )
+        gpu_label = tk.Label(
+            master=parameter_frame, text="num_gpu", bg=self.bg, fg=self.fg
+        )
+        self.gpu_entry = tk.Entry(
+            master=parameter_frame,
+            bg=self.btn_bg,
+            fg=self.fg,
+            insertbackground=self.fg,
+        )
+        stop_label = tk.Label(
+            master=parameter_frame, text="stop", bg=self.bg, fg=self.fg
+        )
+        self.stop_listbox = tk.Listbox(
+            master=parameter_frame, bg=self.btn_bg, fg=self.fg
+        )
+        self.stop_entry = tk.Entry(
+            master=parameter_frame,
+            bg=self.btn_bg,
+            fg=self.fg,
+            insertbackground=self.fg,
+        )
+        add_stop_btn = self.create_button(
+            master=parameter_frame, text="+", command=self.add_stop
+        )
+        remove_stop_btn = self.create_button(
+            master=parameter_frame, text="-", command=self.remove_stop
+        )
+
+        temp_label.grid(row=0, column=0, padx=5, pady=5)
+        self.temp_entry.grid(row=0, column=1, padx=5, pady=5)
+        topk_label.grid(row=1, column=0, padx=5, pady=5)
+        self.topk_entry.grid(row=1, column=1, padx=5, pady=5)
+        topp_label.grid(row=2, column=0, padx=5, pady=5)
+        self.topp_entry.grid(row=2, column=1, padx=5, pady=5)
+        ctx_label.grid(row=3, column=0, padx=5, pady=5)
+        self.ctx_entry.grid(row=3, column=1, padx=5, pady=5)
+        gpu_label.grid(row=4, column=0, padx=5, pady=5)
+        self.gpu_entry.grid(row=4, column=1, padx=5, pady=5)
+        stop_label.grid(row=0, column=3, padx=5, pady=5)
+        self.stop_entry.grid(row=0, column=4, padx=5, pady=5)
+        self.stop_listbox.grid(row=1, column=4, columnspan=3, rowspan=4, padx=5, pady=5)
+        add_stop_btn.grid(row=2, column=3, padx=5, pady=5)
+        remove_stop_btn.grid(row=3, column=3, padx=5, pady=5)
+
+        if param:
+            temp, topk, topp, ctx, gpu, stop = parse_parameters(param)
+        else:
+            temp = None
+            topk = None
+            topp = None
+            ctx = None
+            gpu = None
+            stop = []
+
+        if temp:
+            self.insert_value(self.temp_entry, temp)
+        if topk:
+            self.insert_value(self.topk_entry, topk)
+        if topp:
+            self.insert_value(self.topp_entry, topp)
+        if ctx:
+            self.insert_value(self.ctx_entry, ctx)
+        if gpu:
+            self.insert_value(self.gpu_entry, gpu)
+        if stop:
+            for s in stop:
+                self.insert_value(self.stop_listbox, s)
 
         template_label = tk.Label(
             master=template_frame, text="Template", bg=self.bg, fg=self.fg
@@ -539,18 +650,59 @@ class ChatApp:
     def save_modelfile(self):
         current_modelfile, model_name = self.parse_modelfile()
         source, param, template, system = split_modelfile(modelfile=current_modelfile)
+        stops = ""
+
+        saved_temp = self.temp_entry.get()
+        if saved_temp:
+            temp = "PARAMETER temperature " + saved_temp
+        saved_topk = self.topk_entry.get()
+        if saved_topk:
+            topk = "PARAMETER top_k " + saved_topk
+        saved_topp = self.topp_entry.get()
+        if saved_topp:
+            topp = "PARAMETER top_p " + saved_topp
+        saved_ctx = self.ctx_entry.get()
+        if saved_ctx:
+            ctx = "PARAMETER num_ctx " + saved_ctx
+        saved_gpu = self.gpu_entry.get()
+        if saved_gpu:
+            gpu = "PARAMETER num_gpu " + saved_gpu
+        saved_stops = self.stop_listbox.get(0, tk.END)
+        if saved_stops:
+            for stop in saved_stops:
+                stops += "PARAMETER stop " + stop + "\n"
+
+        if temp or topk or topp or ctx or gpu or stops:
+            param = "\n".join(
+                [value for value in [temp, topk, topp, ctx, gpu, stops] if value]
+            ).strip()
 
         saved_system = self.system_textbox.get("1.0", tk.END)
         if saved_system:
-            system = 'SYSTEM """\n' + saved_system + '\n"""'
+            system = 'SYSTEM """\n' + saved_system + '"""'
 
         saved_template = self.template_textbox.get("1.0", tk.END)
         if saved_template:
-            template = 'TEMPLATE """\n' + saved_template + '\n"""'
+            template = 'TEMPLATE """\n' + saved_template + '"""'
 
         new_modelfile = source + "\n\n" + param + "\n\n" + template + "\n\n" + system
         notice = create_modelfile(model_name, new_modelfile)
         print(notice)
+
+    def insert_value(self, widget, value):
+        value = value.split()[-1]
+        widget.insert(tk.END, value)
+
+    def add_stop(self):
+        entry = self.stop_entry.get()
+        if entry:
+            self.stop_listbox.insert(tk.END, entry)
+            self.stop_entry.delete(0, tk.END)
+
+    def remove_stop(self):
+        selected_index = self.stop_listbox.curselection()
+        if selected_index:
+            self.stop_listbox.delete(selected_index)
 
     def save_settings(self):
         pass
