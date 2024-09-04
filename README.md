@@ -16,8 +16,8 @@ Todo
 
 [x] Add vision model
 
-[ ] Allow parameter settings
+[x] Allow parameter settings
 
-[ ] Allow modelfile creation
+[x] Allow modelfile creation
 
 [ ] Allow pulling from Ollama
