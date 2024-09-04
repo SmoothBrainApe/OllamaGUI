@@ -71,14 +71,45 @@ def display_modelfile(model_name: str) -> str:
     return modelfile_text
 
 
-def get_system_prompt(self, modelfile: str) -> str:
-    start = 'SYSTEM  """'
+def split_modelfile(modelfile: str) -> str:
+    split_contents = modelfile.split("\n\n")
+    model_source = split_contents[0]
+    parameter = None
+    template = None
+    system = None
+
+    for content in split_contents:
+        if "PARAMETER" in content:
+            parameter = content
+        elif "TEMPLATE" in content:
+            template = content
+        elif "SYSTEM" in content:
+            system = content
+
+    if parameter or template or system:
+        return model_source, parameter, template, system
+    else:
+        return model_source
+
+
+def get_system_prompt(system: str) -> str:
+    start = 'SYSTEM """'
     end = '"""'
 
-    start_index = modelfile.find(start) + len(start)
-    end_index = modelfile.find(end, start_index)
+    start_index = system.find(start) + len(start)
+    end_index = system.find(end, start_index)
 
-    return modelfile[start_index:end_index].strip()
+    return system[start_index:end_index].strip()
+
+
+def get_template(template: str) -> str:
+    start = 'TEMPLATE """'
+    end = '"""'
+
+    start_index = template.find(start) + len(start)
+    end_index = template.find(end, start_index)
+
+    return template[start_index:end_index].strip()
 
 
 def create_modelfile(model_name: str, modelfile: str) -> str:

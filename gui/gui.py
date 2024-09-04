@@ -14,6 +14,8 @@ from backend.utils import (
     display_modelfile,
     create_modelfile,
     get_system_prompt,
+    get_template,
+    split_modelfile,
     logging,
 )
 
@@ -174,9 +176,9 @@ class ChatApp:
         self.unload_btn = None
         self.modelfile_current_frame = None
         self.settings_frame = None
-        self.file_frame = None
-        self.pull_frame = None
-        self.pull_system_textbox = None
+        self.modelfil_frame = None
+        self.template_textbox = None
+        self.system_textbox = None
 
         self.root.protocol("WM_DELETE_WINDOW", self.exit_window)
         signal.signal(signal.SIGINT, self.exit_on_signal)
@@ -407,6 +409,17 @@ class ChatApp:
         settings_window.title("Settings")
         settings_window.geometry("1000x800")
 
+        current_modelfile, model_name = self.parse_modelfile()
+        if current_modelfile:
+            source, param, template, system = split_modelfile(
+                modelfile=current_modelfile
+            )
+        else:
+            source = None
+            param = None
+            template = None
+            system = None
+
         button_frame = tk.Frame(
             master=settings_window, width=1000, height=50, bg=self.btn_bg
         )
@@ -421,82 +434,84 @@ class ChatApp:
 
         # General Config Settings here
 
-        self.pull_frame = tk.Frame(
+        self.modelfile_frame = tk.Frame(
             master=settings_window, height=550, width=1000, bg=self.bg
         )
-        pull_parameter_frame = tk.Frame(
-            master=self.pull_frame,
+        parameter_frame = tk.Frame(
+            master=self.modelfile_frame,
             bg=self.bg,
             height=200,
             highlightbackground=self.fg,
             highlightthickness=2,
         )
-        pull_system_frame = tk.Frame(
-            master=self.pull_frame,
+        template_frame = tk.Frame(
+            master=self.modelfile_frame,
             bg=self.bg,
-            height=10,
             highlightbackground=self.fg,
             highlightthickness=2,
         )
-        pull_parameter_frame.pack(fill=tk.X, side=tk.TOP)
-        pull_system_frame.pack(fill=tk.BOTH, side=tk.TOP, expand=True)
+        system_frame = tk.Frame(
+            master=self.modelfile_frame,
+            bg=self.bg,
+            highlightbackground=self.fg,
+            highlightthickness=2,
+        )
+        parameter_frame.pack(fill=tk.X, side=tk.TOP)
+        template_frame.pack(fill=tk.BOTH, side=tk.LEFT, expand=True)
+        system_frame.pack(fill=tk.BOTH, side=tk.LEFT, expand=True)
+        # Parameters and System Message here
 
-        pull_system_label = tk.Label(
-            master=pull_system_frame, text="System Prompt", bg=self.bg, fg=self.fg
+        template_label = tk.Label(
+            master=template_frame, text="Template", bg=self.bg, fg=self.fg
         )
-        pull_system_label.pack(side=tk.TOP, anchor=tk.W)
-        pull_system_btn = self.create_button(
-            master=pull_system_frame, text="Save", command=self.save_modelfile_pull
-        )
-        pull_system_btn.pack(side=tk.TOP, anchor=tk.W)
-        self.pull_system_textbox = tk.Text(
-            master=pull_system_frame,
-            height=10,
+        template_label.pack(side=tk.TOP, anchor=tk.W, padx=10, pady=10)
+        self.template_textbox = tk.Text(
+            master=template_frame,
             bg=self.btn_bg,
             fg=self.fg,
             insertbackground=self.fg,
         )
-        self.pull_system_textbox.pack(fill=tk.BOTH, side=tk.TOP, expand=True)
-        current_model = self.model_used_label.cget("text")
-        model_name = current_model.split(" ")[-1]
-        current_modelfile = display_modelfile(model_name)
-        system_prompt = get_system_prompt(current_modelfile)
-        if system_prompt:
-            self.pull_system_textbox.insert(
-                tk.END,
-                system_prompt,
-            )
-        # Parameters and System Message here
+        self.template_textbox.pack(
+            fill=tk.BOTH, side=tk.RIGHT, expand=True, padx=10, pady=10
+        )
 
-        self.file_frame = tk.Frame(
-            master=settings_window, height=550, width=1000, bg=self.bg
-        )
-        file_parameter_frame = tk.Frame(
-            master=self.file_frame,
-            bg=self.bg,
-            height=200,
-            highlightbackground=self.fg,
-            highlightthickness=2,
-        )
-        file_template_frame = tk.Frame(
-            master=self.file_frame,
-            bg=self.bg,
-            width=10,
-            highlightbackground=self.fg,
-            highlightthickness=2,
-        )
-        file_system_frame = tk.Frame(
-            master=self.file_frame,
-            bg=self.bg,
-            width=10,
-            highlightbackground=self.fg,
-            highlightthickness=2,
-        )
-        file_parameter_frame.pack(fill=tk.X, side=tk.TOP)
-        file_template_frame.pack(fill=tk.BOTH, side=tk.LEFT, expand=True)
-        file_system_frame.pack(fill=tk.BOTH, side=tk.LEFT, expand=True)
+        if model_name:
+            template_label.config(text=f"Template: {model_name}")
+        if template:
+            template_prompt = get_template(template=template)
+            if template_prompt:
+                self.template_textbox.insert(
+                    tk.END,
+                    template_prompt,
+                )
 
-        # Choose file, parameters, template and system message here
+        system_label = tk.Label(
+            master=system_frame, text="System Prompt", bg=self.bg, fg=self.fg
+        )
+        system_label.pack(side=tk.TOP, anchor=tk.W, padx=10, pady=10)
+        system_btn = self.create_button(
+            master=system_frame, text="Save", command=self.save_modelfile
+        )
+        system_btn.pack(side=tk.BOTTOM, anchor=tk.E, padx=10, pady=10)
+        self.system_textbox = tk.Text(
+            master=system_frame,
+            bg=self.btn_bg,
+            fg=self.fg,
+            insertbackground=self.fg,
+        )
+        self.system_textbox.pack(
+            fill=tk.BOTH, side=tk.RIGHT, expand=True, padx=10, pady=10
+        )
+
+        if model_name:
+            system_label.config(text=f"System Prompt: {model_name}")
+        if system:
+            system_prompt = get_system_prompt(system=system)
+            if system_prompt:
+                self.system_textbox.insert(
+                    tk.END,
+                    system_prompt,
+                )
 
         settings_button = self.create_button(
             master=button_frame,
@@ -504,26 +519,38 @@ class ChatApp:
             command=self.show_settings,
         )
         settings_button.pack(side=tk.LEFT, padx=5, pady=5)
-        pull_button = self.create_button(
+        modelfile_button = self.create_button(
             master=button_frame,
-            text="From PULL",
-            command=self.show_pull,
+            text="Modelfile Settings",
+            command=self.show_modelfile,
         )
-        pull_button.pack(side=tk.LEFT, padx=5, pady=5)
-        file_button = self.create_button(
-            master=button_frame,
-            text="From FILE",
-            command=self.show_file,
-        )
-        file_button.pack(side=tk.LEFT, padx=5, pady=5)
+        modelfile_button.pack(side=tk.LEFT, padx=5, pady=5)
 
         self.modelfile_current_frame = self.settings_frame
 
-    def save_modelfile_pull(self):
-        system_prompt = self.pull_system_textbox.get("1.0", tk.END)
+    def parse_modelfile(self) -> str:
+        current_model = self.model_used_label.cget("text")
+        model_name = current_model.split(" ")[-1].strip()
+        if model_name == "Empty":
+            return None, None
+        else:
+            return display_modelfile(model_name), model_name
 
-    def save_modelfile_file(self):
-        pass
+    def save_modelfile(self):
+        current_modelfile, model_name = self.parse_modelfile()
+        source, param, template, system = split_modelfile(modelfile=current_modelfile)
+
+        saved_system = self.system_textbox.get("1.0", tk.END)
+        if saved_system:
+            system = 'SYSTEM """\n' + saved_system + '\n"""'
+
+        saved_template = self.template_textbox.get("1.0", tk.END)
+        if saved_template:
+            template = 'TEMPLATE """\n' + saved_template + '\n"""'
+
+        new_modelfile = source + "\n\n" + param + "\n\n" + template + "\n\n" + system
+        notice = create_modelfile(model_name, new_modelfile)
+        print(notice)
 
     def save_settings(self):
         pass
@@ -537,11 +564,8 @@ class ChatApp:
     def show_settings(self):
         self.switch_frame(self.settings_frame)
 
-    def show_pull(self):
-        self.switch_frame(self.pull_frame)
-
-    def show_file(self):
-        self.switch_frame(self.file_frame)
+    def show_modelfile(self):
+        self.switch_frame(self.modelfile_frame)
 
     def exit_function(self):
         if glob.glob(self.config["file"]):
