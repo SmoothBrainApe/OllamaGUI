@@ -56,12 +56,24 @@ class ChatApp:
         self.main_frame = tk.Frame(master=self.root, width=1200, height=900, bg=self.bg)
         self.main_frame.pack(fill=tk.BOTH, expand=True)
 
+        scrollbar = tk.Scrollbar(
+            master=self.main_frame,
+            bg=self.btn_bg,
+            orient=tk.VERTICAL,
+        )
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
         self.view_message_frame = tk.Frame(
-            master=self.main_frame, width=1200, height=50, bg=self.bg
+            master=self.main_frame,
+            width=1200,
+            height=50,
+            bg=self.bg,
         )
         self.view_message_frame.pack(
             padx=5, pady=5, fill=tk.BOTH, side=tk.TOP, expand=True
         )
+
+        self.message_view_textbox
 
         self.send_message_frame = tk.Frame(
             master=self.main_frame, width=1200, height=50, bg=self.bg
@@ -148,7 +160,6 @@ class ChatApp:
             activebackground=self.selected_bg,
             activeforeground=self.selected_fg,
             activeborderwidth=0,
-            postcommand=self.populate_model_menu,
         )
 
         self.model_menu = tk.Menu(
@@ -164,17 +175,13 @@ class ChatApp:
         )
 
         self.menu.add_cascade(label="Options", menu=self.menu_item)
-        self.menu_item.add_cascade(label="Chat Models", menu=self.model_menu)
-
         self.menu_item.add_command(label="Pull Model", command=self.pull_model_window)
         self.menu_item.add_command(label="Settings", command=self.settings)
         self.menu_item.add_command(label="Exit", command=self.exit_window)
 
         self.root.config(menu=self.menu)
 
-        self.user_frame = None
         self.user_label = None
-        self.response_frame = None
         self.response_label = None
         self.unload_btn = None
         self.pull_window = None
@@ -184,8 +191,9 @@ class ChatApp:
         self.embed_list = []
         self.vision_list = []
 
+        self.chat_list_frame = None
         self.embed_list_frame = None
-        self.embed_model = "nomic-text-embed"
+        self.embed_model = "nomic-embed-text"
         self.vision_list_frame = None
         self.vision_model = "moondream"
         self.chunk_size_entry = None
@@ -209,60 +217,60 @@ class ChatApp:
 
     def send_message(self, event=None):
         user_prompt = str(self.user_input.get())
-        print(event)
-        self.user_input.delete(0, tk.END)
-        self.chat_history.append(f"User: {user_prompt}")
+        if user_prompt:
+            self.user_input.delete(0, tk.END)
+            self.chat_history.append(f"User: {user_prompt}")
 
-        if self.file:
-            img_ext = ["png", "jpg", "jpeg", "bmp", "gif"]
-            file_ext = self.file.split("/")[-1].split(".")[-1]
-            if file_ext not in img_ext:
-                if len(self.chat_history) == 1:
-                    query_data = self.db.retrieval(user_prompt)
+            if self.file:
+                img_ext = ["png", "jpg", "jpeg", "bmp", "gif"]
+                file_ext = self.file.split("/")[-1].split(".")[-1]
+                if file_ext not in img_ext:
+                    if len(self.chat_history) == 1:
+                        query_data = self.db.retrieval(user_prompt)
+                    else:
+                        modified_query = self.chat.history_aware_query(
+                            self.chat_history
+                        )
+                        print(modified_query)
+                        query_data = self.db.retrieval(modified_query)
+                    generator = self.chat.chat_loop(
+                        prompt=self.chat_history, file=self.file, query_data=query_data
+                    )
                 else:
-                    modified_query = self.chat.history_aware_query(self.chat_history)
-                    query_data = self.db.retrieval(modified_query)
-                generator = self.chat.chat_loop(
-                    prompt=self.chat_history, file=self.file, query_data=query_data
-                )
+                    generator = self.chat.chat_loop(
+                        prompt=self.chat_history, file=self.file
+                    )
             else:
-                generator = self.chat.chat_loop(
-                    prompt=self.chat_history, file=self.file
-                )
+                generator = self.chat.chat_loop(self.chat_history)
+
+            text_var = tk.StringVar()
+            text_var.set(user_prompt)
+
+            self.user_label = tk.Label(
+                master=self.view_message_frame,
+                textvariable=text_var,
+                bg=self.btn_bg,
+                fg=self.fg,
+                wraplength=self.view_message_frame.winfo_width() * 0.6,
+            )
+            self.user_label.pack(
+                padx=5, pady=5, side=tk.BOTTOM, anchor=tk.E, before=self.response_label
+            )
+
+            self.response_label = tk.Label(
+                master=self.view_message_frame,
+                bg=self.btn_bg,
+                fg=self.fg,
+                wraplength=self.view_message_frame.winfo_width() * 0.6,
+            )
+            self.response_label.pack(
+                padx=5, pady=5, side=tk.BOTTOM, anchor=tk.W, before=self.user_label
+            )
+
+            self.stream_response(generator=generator)
         else:
-            generator = self.chat.chat_loop(self.chat_history)
-
-        self.user_frame = tk.Frame(master=self.view_message_frame, bg=self.btn_bg)
-        self.user_frame.pack(
-            padx=5, pady=5, side=tk.BOTTOM, anchor=tk.E, before=self.response_frame
-        )
-
-        text_var = tk.StringVar()
-        text_var.set(user_prompt)
-
-        self.user_label = tk.Label(
-            master=self.user_frame,
-            textvariable=text_var,
-            bg=self.btn_bg,
-            fg=self.fg,
-            wraplength=self.view_message_frame.winfo_width() * 0.6,
-        )
-        self.user_label.pack(side=tk.RIGHT)
-
-        self.response_frame = tk.Frame(master=self.view_message_frame, bg=self.btn_bg)
-        self.response_frame.pack(
-            padx=5, pady=5, side=tk.BOTTOM, anchor=tk.W, before=self.user_frame
-        )
-
-        self.response_label = tk.Label(
-            master=self.response_frame,
-            bg=self.btn_bg,
-            fg=self.fg,
-            wraplength=self.view_message_frame.winfo_width() * 0.6,
-        )
-        self.response_label.pack(side=tk.LEFT, anchor=tk.W)
-
-        self.stream_response(generator=generator)
+            notice = "Choose a chat model from options first!"
+            self.new_notice(notice=notice)
 
     def stream_response(self, generator):
         try:
@@ -307,7 +315,7 @@ class ChatApp:
         self.pull_window.destroy()
         pull_model(str(model))
 
-    def populate_model_menu(self):
+    def populate_model_list(self):
         all_models = display_models()
 
         for model in all_models:
@@ -326,18 +334,6 @@ class ChatApp:
             notice = "There are no models for chat. Please pull a model from Ollama."
             self.new_notice(notice=notice)
 
-        chat_model_var = tk.StringVar()
-
-        self.model_menu.delete(0, tk.END)
-
-        for model in self.chat_list:
-            self.model_menu.add_radiobutton(
-                label=model,
-                command=lambda m=model: self.update_chat_model(m),
-                variable=chat_model_var,
-                value=model,
-            )
-
     def update_chat_model(self, model: str):
         self.clear_conversation()
         self.chat = OllamaChat(model, self.vision_model)
@@ -348,8 +344,8 @@ class ChatApp:
         self.new_notice(notice=notice)
 
     def clear_conversation(self):
-        for widget in self.view_message_frame.winfo_children():
-            if isinstance(widget, tk.Frame):
+        for widget in self.content_frame.winfo_children():
+            if isinstance(widget, tk.Label):
                 widget.destroy()
         self.chat_history = []
 
@@ -384,7 +380,7 @@ class ChatApp:
                 file_ext = os.path.splitext(file_path)[-1]
                 file_name = file_path.split("/")[-1].split(".")[0]
 
-                self.file = f"temp/temp{file_ext}"
+                self.file = f"temp/{file_name}{file_ext}"
                 shutil.copy(file_path, self.file)
 
                 img_ext = [".png", ".jpg", ".jpeg", ".bmp", ".gif"]
@@ -493,6 +489,12 @@ class ChatApp:
             highlightbackground=self.fg,
             highlightthickness=2,
         )
+        self.chat_list_frame = tk.Frame(
+            master=self.settings_frame,
+            bg=self.bg,
+            highlightbackground=self.fg,
+            highlightthickness=2,
+        )
         self.embed_list_frame = tk.Frame(
             master=self.settings_frame,
             bg=self.bg,
@@ -507,6 +509,7 @@ class ChatApp:
         )
 
         general_settings_frame.pack(fill=tk.BOTH, side=tk.LEFT, expand=True)
+        self.chat_list_frame.pack(fill=tk.BOTH, side=tk.LEFT, expand=True)
         self.embed_list_frame.pack(fill=tk.BOTH, side=tk.LEFT, expand=True)
         self.vision_list_frame.pack(fill=tk.BOTH, side=tk.LEFT, expand=True)
 
@@ -529,6 +532,7 @@ class ChatApp:
 
         chunk_size = self.config["chunk_size"]
         if chunk_size:
+            self.chunk_size_entry.delete(0, tk.END)
             self.chunk_size_entry.insert(tk.END, chunk_size)
 
         self.modelfile_frame = tk.Frame(
@@ -680,6 +684,7 @@ class ChatApp:
         if template:
             template_prompt = get_template(template=template)
             if template_prompt:
+                self.template_textbox.delete(1.0, tk.END)
                 self.template_textbox.insert(
                     tk.END,
                     template_prompt,
@@ -708,6 +713,7 @@ class ChatApp:
         if system:
             system_prompt = get_system_prompt(system=system)
             if system_prompt:
+                self.system_textbox.delete(1.0, tk.END)
                 self.system_textbox.insert(
                     tk.END,
                     system_prompt,
@@ -777,12 +783,12 @@ class ChatApp:
 
         new_modelfile = source + "\n\n" + param + "\n\n" + template + "\n\n" + system
         notice = create_modelfile(model_name, new_modelfile)
-        print(notice)
+        self.new_notice(notice=notice)
 
     def insert_value(self, widget, value):
         widget.delete(0, tk.END)
         value = value.split()[-1]
-        widget.insert(tk.END, value)
+        widget.insert(0, value)
 
     def add_stop(self):
         entry = self.stop_entry.get()
@@ -803,6 +809,12 @@ class ChatApp:
                 json.dump(self.config, f)
 
     def populate_models_in_settings(self):
+        self.populate_model_list()
+
+        if self.chat_list_frame.winfo_children():
+            for widget in self.chat_list_frame.winfo_children():
+                widget.destroy()
+
         if self.embed_list_frame.winfo_children():
             for widget in self.embed_list_frame.winfo_children():
                 widget.destroy()
@@ -811,10 +823,42 @@ class ChatApp:
             for widget in self.vision_list_frame.winfo_children():
                 widget.destroy()
 
+        if not self.chat_list:
+            no_chat_model_label = tk.Label(
+                master=self.vision_list_frame,
+                text="No Chat Model Available. Pull first.",
+                bg=self.bg,
+                fg=self.fg,
+            )
+            no_chat_model_label.pack(side=tk.TOP, anchor=tk.W, padx=5, pady=5)
+        else:
+            chat_model_label = tk.Label(
+                master=self.chat_list_frame,
+                text="Choose Chat Models",
+                bg=self.bg,
+                fg=self.fg,
+            )
+            chat_model_label.pack(side=tk.TOP, anchor=tk.W, padx=5, pady=5)
+            chat_model_var = tk.StringVar()
+            for model in self.chat_list:
+                chat_model_opt = tk.Radiobutton(
+                    master=self.chat_list_frame,
+                    text=str(model),
+                    bg=self.bg,
+                    fg=self.fg,
+                    activebackground=self.selected_bg,
+                    activeforeground=self.selected_fg,
+                    variable=chat_model_var,
+                    value=str(model),
+                    selectcolor="black",
+                    command=lambda m=model: self.update_chat_model(m),
+                )
+                chat_model_opt.pack(side=tk.TOP, anchor=tk.W, padx=5, pady=5)
+
         if not self.embed_list:
             no_embed_model_label = tk.Label(
                 master=self.vision_list_frame,
-                text="No Embed Model Available",
+                text="No Embed Model Available.",
                 bg=self.bg,
                 fg=self.fg,
             )
@@ -846,7 +890,7 @@ class ChatApp:
         if not self.vision_list:
             no_vision_model_label = tk.Label(
                 master=self.vision_list_frame,
-                text="No Vision Model Available",
+                text="No Vision Model Available.",
                 bg=self.bg,
                 fg=self.fg,
             )
@@ -877,11 +921,9 @@ class ChatApp:
 
     def choose_embed_model(self, model):
         self.embed_model = model
-        print(model)
 
     def choose_vision_model(self, model):
         self.vision_model = model
-        print(model)
 
     def switch_frame(self, new_frame):
         if self.modelfile_current_frame != new_frame:

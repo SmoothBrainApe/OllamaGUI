@@ -1,23 +1,37 @@
-# OllamaGUI
-
 Ollama with python and tkinter
 
-Todo
+Features:
 
-[x] Chat to work
+> Powered by Ollama. Existing ollama models will automatically be detected.
+> Regular chat
+> Chat with your documents (Will activate after uploading a file)
+> Currently only supports .txt files. Will add support for more file types in the future.
+> Chat with an image with vision models. Just upload the image and start chatting.
+> Pull models and create modefile in the settings.
 
-[x] Basic GUI
+Install:
 
-[x] Chat History
+`git clone https://github.com/kikoferrer/OllamaGUI.git`
+`cd OllamaGUI`
 
-[x] Setup database
+`python -m venv venv` (optional but recommended)
+`source venv/bin/activate` (skip if you did not create a venv)
 
-[x] Setup RAG
+`pip install -r requirements.txt`
+`python main.py`
 
-[x] Add vision model
+Todo List:
+[] Add support for multiple file types:
 
-[x] Allow parameter settings
+> [] PDF
+> [] CSV
+> [] Excel Sheets
+> [] Documents
+> [] Website links
 
-[x] Allow modelfile creation
+[] improve RAG accuracy
+[] improve GUI. It is very ugly
+[] implement logging for errors
+[] bug hunting and bug fixes. Feedbacks are welcome
 
-[ ] Allow pulling from Ollama
+"It ain't much but its honest work."

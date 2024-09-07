@@ -49,7 +49,7 @@ class Database:
         print("All embeddings created")
 
     def retrieval(self, prompt: str) -> str:
-        n_results = math.floor(len(self.documents) / 8)
+        n_results = math.floor(len(self.documents) / 8) * 3
         retrieve_response = ollama.embeddings(model=self.embed_model, prompt=prompt)
         retrieve_results = self.collection.query(
             query_embeddings=[retrieve_response["embedding"]],
@@ -58,5 +58,4 @@ class Database:
         lines = retrieve_results["documents"][0]
         retrieved_data = "\n".join(lines)
         print("query data retrieved")
-        print(retrieved_data)
         return retrieved_data
