@@ -140,11 +140,3 @@ def get_template(template: str) -> str:
 def create_modelfile(model_name: str, modelfile: str) -> str:
     ollama.create(model=model_name, modelfile=modelfile)
     return f"modelfile for {model_name} created!"
-
-
-def modelfile_from_pull(model: str):
-    pass
-
-
-def modelfile_from_file(model_name: str, model_path: str):
-    pass

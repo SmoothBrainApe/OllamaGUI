@@ -6,7 +6,7 @@ import os
 import json
 import glob
 from PIL import Image, ImageTk
-from backend.chat import OllamChat
+from backend.chat import OllamaChat
 from backend.database import Database
 from backend.docs_process import Documents
 from backend.utils import (
@@ -17,6 +17,7 @@ from backend.utils import (
     get_template,
     split_modelfile,
     parse_parameters,
+    pull_model,
     logging,
 )
 
@@ -165,6 +166,7 @@ class ChatApp:
         self.menu.add_cascade(label="Options", menu=self.menu_item)
         self.menu_item.add_cascade(label="Chat Models", menu=self.model_menu)
 
+        self.menu_item.add_command(label="Pull Model", command=self.pull_model_window)
         self.menu_item.add_command(label="Settings", command=self.settings)
         self.menu_item.add_command(label="Exit", command=self.exit_window)
 
@@ -175,6 +177,18 @@ class ChatApp:
         self.response_frame = None
         self.response_label = None
         self.unload_btn = None
+        self.pull_window = None
+        self.pull_entry = None
+
+        self.chat_list = []
+        self.embed_list = []
+        self.vision_list = []
+
+        self.embed_list_frame = None
+        self.embed_model = "nomic-text-embed"
+        self.vision_list_frame = None
+        self.vision_model = "moondream"
+        self.chunk_size_entry = None
         self.modelfile_current_frame = None
         self.settings_frame = None
         self.modelfil_frame = None
@@ -195,6 +209,7 @@ class ChatApp:
 
     def send_message(self, event=None):
         user_prompt = str(self.user_input.get())
+        print(event)
         self.user_input.delete(0, tk.END)
         self.chat_history.append(f"User: {user_prompt}")
 
@@ -202,7 +217,11 @@ class ChatApp:
             img_ext = ["png", "jpg", "jpeg", "bmp", "gif"]
             file_ext = self.file.split("/")[-1].split(".")[-1]
             if file_ext not in img_ext:
-                query_data = self.db.retrieval(user_prompt)
+                if len(self.chat_history) == 1:
+                    query_data = self.db.retrieval(user_prompt)
+                else:
+                    modified_query = self.chat.history_aware_query(self.chat_history)
+                    query_data = self.db.retrieval(modified_query)
                 generator = self.chat.chat_loop(
                     prompt=self.chat_history, file=self.file, query_data=query_data
                 )
@@ -256,25 +275,54 @@ class ChatApp:
             complete_message = str(self.response_label.cget("text"))
             self.chat_history.append(f"Assistant: {complete_message}")
 
+    def pull_model_window(self):
+        self.pull_window = tk.Toplevel(self.root)
+        self.pull_window.title("Pull Model")
+
+        pull_frame = tk.Frame(master=self.pull_window, bg=self.bg)
+        pull_frame.pack(fill=tk.BOTH, expand=True)
+
+        pull_label = tk.Label(
+            master=pull_frame,
+            text="Enter the Model you wish to pull:",
+            bg=self.bg,
+            fg=self.fg,
+        )
+        self.pull_entry = tk.Entry(
+            master=pull_frame,
+            bg=self.btn_bg,
+            fg=self.fg,
+            insertbackground=self.fg,
+        )
+        pull_button = self.create_button(
+            master=pull_frame, text="Pull Model", command=self.pull_button
+        )
+
+        pull_label.pack(side=tk.TOP, padx=5, pady=5)
+        self.pull_entry.pack(side=tk.TOP, padx=5, pady=5)
+        pull_button.pack(side=tk.TOP, padx=5, pady=5)
+
+    def pull_button(self):
+        model = self.pull_entry.get()
+        self.pull_window.destroy()
+        pull_model(str(model))
+
     def populate_model_menu(self):
         all_models = display_models()
-        chat_list = []
-        embed_list = []
-        vision_list = []
 
         for model in all_models:
             if model != "moondream":
                 if "llava" not in model:
                     if "embed" not in model:
-                        chat_list.append(model)
+                        self.chat_list.append(model)
                     else:
-                        embed_list.append(model)
+                        self.embed_list.append(model)
                 else:
-                    vision_list.append(model)
+                    self.vision_list.append(model)
             else:
-                vision_list.append(model)
+                self.vision_list.append(model)
 
-        if not chat_list:
+        if not self.chat_list:
             notice = "There are no models for chat. Please pull a model from Ollama."
             self.new_notice(notice=notice)
 
@@ -282,7 +330,7 @@ class ChatApp:
 
         self.model_menu.delete(0, tk.END)
 
-        for model in chat_list:
+        for model in self.chat_list:
             self.model_menu.add_radiobutton(
                 label=model,
                 command=lambda m=model: self.update_chat_model(m),
@@ -292,7 +340,7 @@ class ChatApp:
 
     def update_chat_model(self, model: str):
         self.clear_conversation()
-        self.chat = OllamChat(model)
+        self.chat = OllamaChat(model, self.vision_model)
         self.model_used_label.config(text=f"Model: {model}")
         if self.user_input.cget("state") == tk.DISABLED:
             self.user_input.config(state=tk.NORMAL)
@@ -344,7 +392,9 @@ class ChatApp:
                 if file_ext not in img_ext:
                     self.docs = Documents(self.file, self.config["chunk_size"])
                     documents = self.docs.cleaning_process()
-                    self.db = Database(self.config["db_path"], documents)
+                    self.db = Database(
+                        self.config["db_path"], documents, self.embed_model
+                    )
                     self.db.init_collection(self.file)
                     self.db.embedding()
 
@@ -423,7 +473,6 @@ class ChatApp:
                 modelfile=current_modelfile
             )
         else:
-            source = None
             param = None
             template = None
             system = None
@@ -433,14 +482,54 @@ class ChatApp:
         )
         button_frame.pack(side=tk.TOP, fill=tk.X)
 
-        # Add settings parameters and windows
-
         self.settings_frame = tk.Frame(
             master=settings_window, height=550, width=1000, bg=self.bg
         )
         self.settings_frame.pack(fill=tk.BOTH, side=tk.BOTTOM, expand=True)
 
-        # General Config Settings here
+        general_settings_frame = tk.Frame(
+            master=self.settings_frame,
+            bg=self.bg,
+            highlightbackground=self.fg,
+            highlightthickness=2,
+        )
+        self.embed_list_frame = tk.Frame(
+            master=self.settings_frame,
+            bg=self.bg,
+            highlightbackground=self.fg,
+            highlightthickness=2,
+        )
+        self.vision_list_frame = tk.Frame(
+            master=self.settings_frame,
+            bg=self.bg,
+            highlightbackground=self.fg,
+            highlightthickness=2,
+        )
+
+        general_settings_frame.pack(fill=tk.BOTH, side=tk.LEFT, expand=True)
+        self.embed_list_frame.pack(fill=tk.BOTH, side=tk.LEFT, expand=True)
+        self.vision_list_frame.pack(fill=tk.BOTH, side=tk.LEFT, expand=True)
+
+        chunk_size_label = tk.Label(
+            master=general_settings_frame, text="Chunk Size", bg=self.bg, fg=self.fg
+        )
+        self.chunk_size_entry = tk.Entry(
+            master=general_settings_frame,
+            width=10,
+            bg=self.btn_bg,
+            fg=self.fg,
+            insertbackground=self.fg,
+        )
+        save_btn = self.create_button(
+            master=general_settings_frame, text="Save", command=self.save_settings
+        )
+        chunk_size_label.pack(side=tk.LEFT, anchor=tk.N, padx=5, pady=5)
+        self.chunk_size_entry.pack(side=tk.LEFT, anchor=tk.N, padx=5, pady=5)
+        save_btn.pack(side=tk.RIGHT, anchor=tk.N, padx=5, pady=5)
+
+        chunk_size = self.config["chunk_size"]
+        if chunk_size:
+            self.chunk_size_entry.insert(tk.END, chunk_size)
 
         self.modelfile_frame = tk.Frame(
             master=settings_window, height=550, width=1000, bg=self.bg
@@ -638,6 +727,7 @@ class ChatApp:
         modelfile_button.pack(side=tk.LEFT, padx=5, pady=5)
 
         self.modelfile_current_frame = self.settings_frame
+        self.populate_models_in_settings()
 
     def parse_modelfile(self) -> str:
         current_model = self.model_used_label.cget("text")
@@ -690,6 +780,7 @@ class ChatApp:
         print(notice)
 
     def insert_value(self, widget, value):
+        widget.delete(0, tk.END)
         value = value.split()[-1]
         widget.insert(tk.END, value)
 
@@ -705,7 +796,92 @@ class ChatApp:
             self.stop_listbox.delete(selected_index)
 
     def save_settings(self):
-        pass
+        self.config["chunk_size"] = int(self.chunk_size_entry.get())
+
+        if not os.path.exists("config.json"):
+            with open("config.json", "w") as f:
+                json.dump(self.config, f)
+
+    def populate_models_in_settings(self):
+        if self.embed_list_frame.winfo_children():
+            for widget in self.embed_list_frame.winfo_children():
+                widget.destroy()
+
+        if self.vision_list_frame.winfo_children():
+            for widget in self.vision_list_frame.winfo_children():
+                widget.destroy()
+
+        if not self.embed_list:
+            no_embed_model_label = tk.Label(
+                master=self.vision_list_frame,
+                text="No Embed Model Available",
+                bg=self.bg,
+                fg=self.fg,
+            )
+            no_embed_model_label.pack(side=tk.TOP, anchor=tk.W, padx=5, pady=5)
+        else:
+            embed_model_label = tk.Label(
+                master=self.embed_list_frame,
+                text="Choose Embed Models",
+                bg=self.bg,
+                fg=self.fg,
+            )
+            embed_model_label.pack(side=tk.TOP, anchor=tk.W, padx=5, pady=5)
+            embed_model_var = tk.StringVar()
+            for model in self.embed_list:
+                embed_model_opt = tk.Radiobutton(
+                    master=self.embed_list_frame,
+                    text=str(model),
+                    bg=self.bg,
+                    fg=self.fg,
+                    activebackground=self.selected_bg,
+                    activeforeground=self.selected_fg,
+                    variable=embed_model_var,
+                    value=str(model),
+                    selectcolor="black",
+                    command=lambda m=model: self.choose_embed_model(m),
+                )
+                embed_model_opt.pack(side=tk.TOP, anchor=tk.W, padx=5, pady=5)
+
+        if not self.vision_list:
+            no_vision_model_label = tk.Label(
+                master=self.vision_list_frame,
+                text="No Vision Model Available",
+                bg=self.bg,
+                fg=self.fg,
+            )
+            no_vision_model_label.pack(side=tk.TOP, anchor=tk.W, padx=5, pady=5)
+        else:
+            vision_model_label = tk.Label(
+                master=self.vision_list_frame,
+                text="Choose Vision Models",
+                bg=self.bg,
+                fg=self.fg,
+            )
+            vision_model_label.pack(side=tk.TOP, anchor=tk.W, padx=5, pady=5)
+            vision_model_var = tk.StringVar()
+            for model in self.vision_list:
+                vision_model_opt = tk.Radiobutton(
+                    master=self.vision_list_frame,
+                    text=str(model),
+                    bg=self.bg,
+                    fg=self.fg,
+                    activebackground=self.selected_bg,
+                    activeforeground=self.selected_fg,
+                    variable=vision_model_var,
+                    value=str(model),
+                    selectcolor="black",
+                    command=lambda m=model: self.choose_vision_model(m),
+                )
+                vision_model_opt.pack(side=tk.TOP, anchor=tk.W, padx=5, pady=5)
+
+    def choose_embed_model(self, model):
+        self.embed_model = model
+        print(model)
+
+    def choose_vision_model(self, model):
+        self.vision_model = model
+        print(model)
 
     def switch_frame(self, new_frame):
         if self.modelfile_current_frame != new_frame:
@@ -715,6 +891,7 @@ class ChatApp:
 
     def show_settings(self):
         self.switch_frame(self.settings_frame)
+        self.populate_models_in_settings()
 
     def show_modelfile(self):
         self.switch_frame(self.modelfile_frame)

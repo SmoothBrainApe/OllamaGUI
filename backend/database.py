@@ -6,7 +6,7 @@ from backend.utils import display_models
 
 
 class Database:
-    def __init__(self, db_path: str, documents: list):
+    def __init__(self, db_path: str, documents: list, embed_model="nomic-embed-text"):
         model_list = display_models()
         if "nomic-embed-text" not in model_list:
             print(f"Downloading vision model: {self.embed_model}")
@@ -14,7 +14,7 @@ class Database:
             print(f"Vision Model downloaded: {self.embed_model}")
         self.db_path = db_path
         self.collection = None
-        self.embed_model = "nomic-embed-text"
+        self.embed_model = embed_model
         self.documents = documents
         try:
             if not os.path.exists(self.db_path):
@@ -58,4 +58,5 @@ class Database:
         lines = retrieve_results["documents"][0]
         retrieved_data = "\n".join(lines)
         print("query data retrieved")
+        print(retrieved_data)
         return retrieved_data
