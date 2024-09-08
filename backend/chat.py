@@ -3,7 +3,7 @@ from backend.utils import display_models
 
 
 class OllamaChat:
-    def __init__(self, chat_model=None, vision_model="moondream"):
+    def __init__(self, chat_model=None, vision_model=None):
         self.chat_model = chat_model
         self.vision_model = vision_model
 

@@ -24,9 +24,8 @@ class Database:
         except Exception as e:
             print(f"Error has occured: {e}")
 
-    def init_collection(self, file: str):
+    def init_collection(self, file_name: str):
         print("Collection created")
-        file_name = file.split("/")[-1]
         name = file_name.split(".")[0]
         while True:
             try:
