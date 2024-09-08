@@ -1,5 +1,5 @@
-from fastapi import FastAPI, File, UploadFile
-from backend.module import Module
+from fastapi import FastAPI, Form, File
+from module import Module
 import base64
 
 
@@ -18,7 +18,7 @@ async def receive_message(payload: dict) -> dict:
 
 
 @app.get("/chat/models")
-async def send_models_list() -> dict[str | list]:
+async def send_models_list() -> dict[str, str | list[str]]:
     response = mod.display_models()
     return {"message": response}
 
@@ -57,25 +57,24 @@ async def vision_model(payload: dict) -> dict:
 
 
 @app.post("/chat/file/upload")
-async def upload_file(file: UploadFile = File(...)) -> dict:
-    if file:
-        contents = await file.read()
-        decoded_contents = base64.b64decode(contents)
-        filename = file.filename
+async def upload_file(file: bytes = File(...), filename: str = Form(...)) -> dict:
+    if file and filename:
+
+        decoded_contents = base64.b64decode(file)
         response = mod.uploaded_file(filename, decoded_contents)
         return {"message": response}
     else:
         return {"message": "file not uploaded."}
 
 
-@app.get("/chat/modelfile/<model_name>")
-async def display_modelfile(payload) -> dict:
+@app.get("/chat/modelfile/get")
+async def display_modelfile(payload: dict) -> dict:
     model_name = payload["message"]
     response = mod.display_modelfile(model_name)
     return {"message": response}
 
 
-@app.put("/chat/modelfile/<model_name>")
+@app.put("/chat/modelfile/create")
 async def create_modelfile(payload: dict) -> dict:
     model_name = payload["name"]
     modelfile = payload["modelfile"]

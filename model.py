@@ -11,7 +11,7 @@ import ollama
 config_file = "config.json"
 
 
-class Module:
+class ChatModel:
     def __init__(self):
         if not os.path.exists(config_file):
             with open(config_file, "w") as f:
@@ -134,7 +134,7 @@ class Module:
             return "Choose a model first"
 
     def display_modelfile(self, model_name: str) -> str:
-        modelfile_path = "modelfiles"
+        modelfile_path = "../modelfiles"
 
         if not os.path.exists(modelfile_path):
             os.makedirs(modelfile_path)

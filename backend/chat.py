@@ -11,14 +11,14 @@ class OllamaChat:
         if file:
             if query_data:
                 if len(prompt) == 1:
-                    user_prompt = f"using this provided context: '{query_data}', respond to this message with a natural response: '{prompt[0]}'"
+                    user_prompt = f"using this provided context: '{query_data}', respond to my message: '{prompt[0]}'. Ensure your response is natural to the flow of the conversation."
                     message = [{"role": "user", "content": user_prompt}]
                 else:
                     message_history = "\n".join(prompt[:-1])
                     print(message_history)
                     user_message = prompt[-1]
                     print(user_message)
-                    user_prompt = f"using this provided context: '{query_data}' while considering this chat history: '{message_history}', respond to this message with a natural response: '{user_message[6:]}' "
+                    user_prompt = f"using this provided context: '{query_data}' while considering this chat history: '{message_history}', respond to my message: '{prompt[-1]}'. Ensure your response is natural to the flow of the conversation."
                     message = [
                         {
                             "role": "user",
@@ -28,12 +28,12 @@ class OllamaChat:
             else:
                 image_description = self.vision_model_chat(file)
                 if len(prompt) == 1:
-                    user_prompt = f"respond to this message with a natural response: '{prompt[0]}' using this provided context: '{image_description}'"
+                    user_prompt = f"using this provided context: '{image_description}', respond to my message: '{prompt[0]}'. Ensure your response is natural to the flow of the conversation."
                     message = [{"role": "user", "content": user_prompt}]
                 else:
                     message_history = "\n".join(prompt[:-1])
                     user_message = prompt[-1]
-                    user_prompt = f"using this provided context: '{image_description}' while considering this chat history: '{message_history}', respond to this message with a natural response: '{user_message[6:]}'"
+                    user_prompt = f"using this provided context: '{image_description}' while considering this chat history: '{message_history}', respond to my message: '{prompt[-1]}'. Ensure your response is natural to the flow of the conversation."
                     message = [
                         {
                             "role": "user",
@@ -51,7 +51,7 @@ class OllamaChat:
             else:
                 message_history = "\n".join(prompt[:-1])
                 user_message = prompt[-1]
-                user_prompt = f"while considering this chat history: '{message_history}', respond to this message with a natural response: '{user_message[6:]}'"
+                user_prompt = f"while considering this chat history: '{message_history}', respond to my message: '{prompt[-1]}'. Ensure your response is natural to the flow of the conversation."
                 message = [
                     {
                         "role": "user",

@@ -1,0 +1,99 @@
+html {
+    font-family: 'Times New Roman', Times, serif;
+    font-size: 16px;
+    background-color: black;
+    color: whitesmoke;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    margin: 0;
+}
+
+header, footer {
+    flex: 0.3;
+    background-color: #1f1f1f;
+    padding: 5px;
+    min-height: 3vh;
+}
+
+main {
+    flex: 1;
+    display: flex;
+    flex-direction: row;
+    min-height: 90vh;
+}
+
+#side-bar {
+    flex: 0.2;
+    display: block;
+    border-right: solid;
+    border-width: 1px;
+    border-color: #757575;
+}
+
+.model-dropdown {
+    padding: 5px;
+    margin-top: 20px;
+}
+
+
+
+#main-frame {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+#chat-window {
+    flex: 2;
+    min-height: 80vh;
+}
+
+#user-input {
+    flex: 0.1;
+    display: flex;
+    min-height: 3rem;
+    padding: 5px;
+    justify-content: center;
+    text-align: center;
+    align-content: center;
+}
+
+#user-input-field {
+    width: 48vh;
+    height: 1rem;
+    background-color: #1f1f1f;
+    border: none;
+    outline: none;
+}
+
+select, input, button {
+    background-color: #353535;
+    color: whitesmoke;
+    border-radius: 10px;
+}
+
+button {
+    height: 2rem;
+    display: flex;
+    margin: 5px;
+    align-items: center;
+    text-align: center;
+    justify-content: center;
+}
+
+#user-input-padding {
+    background-color: #1f1f1f;
+    height: 2rem;
+    width: 50vh;
+    padding: 5px;
+    border-radius: 20px;
+    border: solid;
+    border-width: 1px;
+    border-color: #757575;
+    justify-content: center;
+    align-content: center;
+}
