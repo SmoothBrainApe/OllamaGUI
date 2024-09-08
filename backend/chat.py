@@ -58,14 +58,12 @@ class OllamaChat:
                         "content": user_prompt,
                     }
                 ]
-        stream = ollama.chat(
+        response = ollama.chat(
             model=self.chat_model,
             messages=message,
-            stream=True,
         )
 
-        for word in stream:
-            yield word["message"]["content"]
+        return response["message"]["content"]
 
     def vision_model_chat(self, file):
         with open(file, "rb") as i:
