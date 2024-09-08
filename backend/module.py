@@ -5,7 +5,7 @@ from backend.utils import *
 import json
 import os
 import glob
-from PIL import Image
+import ollama
 
 
 config_file = "config.json"
@@ -82,6 +82,10 @@ class Module:
         else:
             return all_models
 
+    def pull_model(self, model_name: str) -> str:
+        ollama.pull(model_name)
+        return f"Model {model_name} pulled successfully!"
+
     def initialize_chat(self, model: str) -> str:
         self.chat = OllamaChat(chat_model=model, vision_model=self.vision_model)
         return f"Now using {model}"
@@ -128,3 +132,36 @@ class Module:
 
         else:
             return "Choose a model first"
+
+    def display_modelfile(self, model_name: str) -> str:
+        modelfile_path = "modelfiles"
+
+        if not os.path.exists(modelfile_path):
+            os.makedirs(modelfile_path)
+
+        if not os.listdir(modelfile_path):
+            return "No modelfile found! Create a modelfile first!"
+
+        modelfile = f"{modelfile_path}/{model_name}"
+
+        if not os.path.exists(modelfile):
+            return f"Modelfile for {model_name} not found! Create one first!"
+
+        with open(modelfile, "r") as m:
+            modelfile_text = m.read()
+
+        return modelfile_text
+
+    def create_modelfile(self, model_name: str, modelfile: str) -> str:
+        ollama.create(model=model_name, modelfile=modelfile)
+        return f"modelfile for {model_name} created!"
+
+    def delete_file(self) -> str:
+        if self.uploaded_file:
+            os.remove(self.uploaded_file)
+            return "Uploaded file deleted"
+
+    def clear_chat_history(self) -> str:
+        if self.chat_history:
+            self.chat_history = []
+            return "Chat history cleared"
