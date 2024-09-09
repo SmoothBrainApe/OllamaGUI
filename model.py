@@ -38,6 +38,7 @@ class ChatModel:
         user_prompt = str(message)
         if user_prompt:
             self.chat_history.append(f"User: {user_prompt}")
+            complete_message = ""
 
             if self.uploaded_file:
                 img_ext = ["png", "jpg", "jpeg", "bmp", "gif"]
@@ -51,20 +52,26 @@ class ChatModel:
                         )
                         query_data = self.db.retrieval(modified_query)
 
-                    response = self.chat.chat_loop(
+                    for word in self.chat.chat_loop(
                         prompt=self.chat_history,
                         file=self.uploaded_file,
                         query_data=query_data,
-                    )
-                    return response
+                    ):
+                        complete_message += word
+                        yield word
+                    self.chat_history.append(f"Assistant: {complete_message}")
                 elif file_ext in img_ext:
-                    response = self.chat.chat_loop(
+                    for word in self.chat.chat_loop(
                         prompt=self.chat_history, file=self.uploaded_file
-                    )
-                    return response
+                    ):
+                        complete_message += word
+                        yield word
+                    self.chat_history.append(f"Assistant: {complete_message}")
             else:
-                response = self.chat.chat_loop(prompt=self.chat_history)
-                return response
+                for word in self.chat.chat_loop(prompt=self.chat_history):
+                    complete_message += word
+                    yield word
+                self.chat_history.append(f"Assistant: {complete_message}")
         else:
             return "No Message received"
 
