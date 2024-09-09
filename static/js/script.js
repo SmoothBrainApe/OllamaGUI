@@ -1,5 +1,4 @@
 // Send Message Logic
-
 const inputField = document.getElementById('user-input-field');
 const submitButton = document.getElementById('send-button');
 
@@ -9,7 +8,7 @@ inputField.addEventListener('keypress', (event) => {
     }
 });
 
-submitButton.addEventListener('click', handleSubmit());
+submitButton.addEventListener('click', handleSubmit);
 
 function handleSubmit() {
     const userInput = inputField.value;

@@ -12,19 +12,19 @@
         <div id="side-bar">
             <div id="model-list">
                 <div class="model-dropdown" id="chat-model">
-                    <label for="chat-model-select">Chat Model</label>
+                    <label for="chat-model-select">Chat Model</label><br>
                     <select name="chat-model-select" id="chat-model-select" class="model-dropdown-menu">
                         <option value="">No Model Found. Pull from Ollama first.</option>
                     </select>
                 </div>
                 <div class="model-dropdown" id="embed-model">
-                    <label for="embed-model-select">Embedding Model</label>
+                    <label for="embed-model-select">Embed Model</label><br>
                     <select name="embed-model-select" id="embed-model-select" class="model-dropdown-menu">
                         <option value="">No Model Found.</option>
                     </select>
                 </div>
                 <div class="model-dropdown" id="vision-model">
-                    <label for="vision-model-select">Vision Model</label>
+                    <label for="vision-model-select">Vision Model</label><br>
                     <select name="vision-model-select" id="vision-model-select" class="model-dropdown-menu">
                         <option value="">No Model Found.</option>
                     </select>
@@ -48,6 +48,6 @@
         </div>
     </main>
     <footer><p>Author: kikoferrer</p></footer>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
-<script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </html>
