@@ -23,7 +23,7 @@ main {
     flex: 1;
     display: flex;
     flex-direction: row;
-    min-height: 90vh;
+    min-height: 85vh;
 }
 
 #side-bar {
@@ -53,8 +53,9 @@ main {
 }
 
 #user-input {
-    flex: 0.1;
+    flex: 0.15;
     display: flex;
+    flex-direction: row;
     min-height: 3rem;
     padding: 5px;
     justify-content: center;
@@ -98,6 +99,14 @@ button {
     align-content: center;
 }
 
+#chat-window {
+    display: flex;
+    flex-direction: column-reverse;
+    overflow-y: auto;
+    padding: 5px;
+    max-height: 80vh;
+}
+
 .user-chat-bubble, .response-chat-bubble {
     background-color: #1f1f1f;
     color: whitesmoke;
@@ -106,6 +115,7 @@ button {
     margin: 10px;
     max-width: 60%;
     display: inline-block;
+    white-space: pre-wrap;
 }
 
 .response-chat-bubble {
@@ -117,8 +127,3 @@ button {
     align-self: flex-end;
 }
 
-#chat-window {
-    display: flex;
-    flex-direction: column-reverse;
-    overflow: auto;
-}

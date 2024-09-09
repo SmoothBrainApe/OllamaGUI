@@ -59,7 +59,6 @@ class OllamaChat:
                     }
                 ]
         response = ollama.chat(model=self.chat_model, messages=message, stream=True)
-
         for word in response:
             yield word["message"]["content"]
 

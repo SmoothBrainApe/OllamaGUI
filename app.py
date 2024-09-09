@@ -23,7 +23,9 @@ def receive_message():
 
         def generate():
             for word in mod.receive_user_message(message=message):
-                yield f"data: {word}\n\n"
+                yield "data: {}\n\n".format(
+                    word.replace("\n", "\\n").replace("\n\n", "\\n\\n")
+                )
 
         return Response(generate(), mimetype="text/event-stream")
     else:

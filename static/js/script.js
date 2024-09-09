@@ -17,19 +17,18 @@ function handleSubmit() {
 
     if (userInput !== '') {
         createChatBubble('user-chat-bubble', userInput);
-        let firstWord = true;
-        let completeMessage = '';
+        let responseBubble = null;
         const url = `/chat/message?message=${encodeURIComponent(userInput)}`;
         const eventSource = new EventSource(url);
         eventSource.onmessage = (event) => {
-            const word = event.data;
-            if (word !== '') {
-                completeMessage += word;
+            const word = event.data.replace("\\n\\n", "\n\n").replace('\\n', '\n');
+            if (!responseBubble) {
+                responseBubble = createChatBubble('response-chat-bubble', word);
+            } else {
+                responseBubble.textContent += word;
             };
         };
         eventSource.onerror = () => {
-            console.log(completeMessage);
-            createChatBubble('response-chat-bubble', completeMessage);
             console.log("No data received from API")
             eventSource.close();
         };
@@ -38,15 +37,16 @@ function handleSubmit() {
         }
     } else {
         console.log('Please enter a text');
-    }
+    };
 }
 
 function createChatBubble(className, message) {
     const chatWindow = document.getElementById('chat-window')
     const chatBubble = document.createElement('div');
     chatBubble.classList.add(className);
-    chatBubble.textContent = message;
+    chatBubble.innerHTML = message.replace(/\n\n/g, '<br><br>').replace(/\n/g, '<br>');
     chatWindow.prepend(chatBubble);
+    return chatBubble;
 }
 
 const clearButton = document.getElementById('clear-button');
