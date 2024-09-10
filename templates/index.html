@@ -39,7 +39,7 @@
         <div id="main-frame">
             <div id="chat-window"></div>
             <div id="user-input">
-                <div id="user-input-padding"><input type="text" name="user-input-field" id="user-input-field"></div>
+                <div id="user-input-container"><textarea name="user-input-field" id="user-input-field"></textarea></div>
                 <div id="send-button-frame"><button type="button" id="send-button">Send</button></div>
                 <div id="upload-button-frame"><button type="button" id="upload-button">Upload File</button></div>
                 <div id="clear-button-frame"><button type="button" id="clear-button">Clear</button></div>
@@ -48,6 +48,6 @@
         </div>
     </main>
     <footer><p>Author: kikoferrer</p></footer>
-    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    <script type="module" src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 </html>

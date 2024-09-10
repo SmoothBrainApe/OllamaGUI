@@ -2,8 +2,16 @@
 const inputField = document.getElementById('user-input-field');
 const submitButton = document.getElementById('send-button');
 
+inputField.addEventListener('input', () => {
+    inputField.style.height = 'auto';
+    inputField.style.height = inputField.scrollHeight + 'px';
+});
+
 inputField.addEventListener('keypress', (event) => {
-    if (event.key == 'Enter') {
+    if (event.key === 'Enter' && event.shiftKey) {
+        event.preventDefault();
+        inputField.value += '\n';
+    } else if (event.key === 'Enter' && !event.shiftKey) {
         handleSubmit();
     }
 });
@@ -24,7 +32,7 @@ function handleSubmit() {
             if (!responseBubble) {
                 responseBubble = createChatBubble('response-chat-bubble', word);
             } else {
-                responseBubble.textContent += word;
+                responseBubble.innerHTML += word;
             };
         };
         eventSource.onerror = () => {
@@ -40,12 +48,15 @@ function handleSubmit() {
 }
 
 function createChatBubble(className, message) {
-    const chatWindow = document.getElementById('chat-window')
+    const chatWindow = document.getElementById('chat-window');
     const chatBubble = document.createElement('div');
+    const bubbleText = document.createElement('span');
+    const newMessage = message.replace(/\n\n/g, '<br><br>').replace(/\n/g, '<br>');
     chatBubble.classList.add(className);
-    chatBubble.innerHTML = message.replace(/\n\n/g, '<br><br>').replace(/\n/g, '<br>');
+    bubbleText.innerHTML = newMessage;
     chatWindow.prepend(chatBubble);
-    return chatBubble;
+    chatBubble.appendChild(bubbleText);
+    return bubbleText;
 }
 
 const clearButton = document.getElementById('clear-button');
@@ -135,7 +146,7 @@ selectChatModel.addEventListener('change', (event) => {
         })
         .then(response => response.json())
         .then(data => {
-            returnMessage = data.message;
+            const returnMessage = data.message;
             console.log(returnMessage);
         })
     }
