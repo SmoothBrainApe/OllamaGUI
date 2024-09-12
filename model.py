@@ -37,7 +37,11 @@ class ChatModel:
     def receive_user_message(self, message: str) -> str:
         user_prompt = str(message)
         if user_prompt:
-            self.chat_history.append(f"User: {user_prompt}")
+            history_user_message = {
+                "role": "user",
+                "content": user_prompt,
+            }
+            self.chat_history.append(history_user_message)
             complete_message = ""
 
             if self.uploaded_file:
@@ -46,11 +50,21 @@ class ChatModel:
                 if file_ext not in img_ext:
                     if len(self.chat_history) == 1:
                         query_data = self.db.retrieval(user_prompt)
+                        print(query_data)
+                        reranked_query = self.chat.rerank_query_data(
+                            query_data=query_data, user_prompt=user_prompt
+                        )
+                        print(f"\n\n{reranked_query}")
                     else:
                         modified_query = self.chat.history_aware_query(
                             self.chat_history
                         )
                         query_data = self.db.retrieval(modified_query)
+                        print(query_data)
+                        reranked_query = self.chat.rerank_query_data(
+                            query_data=query_data, user_prompt=user_prompt
+                        )
+                        print(f"\n\n{reranked_query}")
 
                     for word in self.chat.chat_loop(
                         prompt=self.chat_history,
@@ -59,19 +73,28 @@ class ChatModel:
                     ):
                         complete_message += word
                         yield word
-                    self.chat_history.append(f"Assistant: {complete_message}")
+                    history_response = {
+                        "role": "assistant",
+                        "content": complete_message,
+                    }
+                    self.chat_history.append(history_response)
                 elif file_ext in img_ext:
                     for word in self.chat.chat_loop(
                         prompt=self.chat_history, file=self.uploaded_file
                     ):
                         complete_message += word
                         yield word
-                    self.chat_history.append(f"Assistant: {complete_message}")
+                    history_response = {
+                        "role": "assistant",
+                        "content": complete_message,
+                    }
+                    self.chat_history.append(history_response)
             else:
                 for word in self.chat.chat_loop(prompt=self.chat_history):
                     complete_message += word
                     yield word
-                self.chat_history.append(f"Assistant: {complete_message}")
+                history_response = {"role": "assistant", "content": complete_message}
+                self.chat_history.append(history_response)
         else:
             return "No Message received"
 
@@ -79,7 +102,7 @@ class ChatModel:
         all_models = display_models()
 
         for model in all_models:
-            if model != "moondream":
+            if "moondream" not in model:
                 if "llava" not in model:
                     if "embed" not in model:
                         self.chat_list.append(model)
