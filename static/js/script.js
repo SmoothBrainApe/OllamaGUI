@@ -13,6 +13,7 @@ inputField.addEventListener('keypress', (event) => {
         inputField.value += '\n';
     } else if (event.key === 'Enter' && !event.shiftKey) {
         handleSubmit();
+        inputField.value = '';
     }
 });
 
@@ -24,24 +25,24 @@ function handleSubmit() {
 
     if (userInput !== '') {
         createChatBubble('user-chat-bubble', userInput);
-        let responseBubble = null;
-        const url = `/chat/message?message=${encodeURIComponent(userInput)}`;
-        const eventSource = new EventSource(url);
-        eventSource.onmessage = (event) => {
-            const word = event.data.replace("\\n\\n", "\n\n").replace('\\n', '\n');
-            if (!responseBubble) {
-                responseBubble = createChatBubble('response-chat-bubble', word);
+        fetch('/chat/message', {
+            method: 'POST',
+            headers: {
+                'Content-type': 'application/json',
+            },
+            body: JSON.stringify({ message: userInput }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            let aiResponse = data.message;
+            if (aiResponse) {
+                const chatBubble = createChatBubble('response-chat-bubble', '');
+                streamText(chatBubble, aiResponse, 5);
             } else {
-                responseBubble.innerHTML += word;
-            };
-        };
-        eventSource.onerror = () => {
-            console.log("No data received from API")
-            eventSource.close();
-        };
-        eventSource.onopen = () => {
-            console.log('Connection established');
-        }
+                console.log('No response message received');
+            }
+        })
+        .catch(error => console.error('Fetch error:', error));
     } else {
         console.log('Please enter a text');
     };
@@ -51,12 +52,23 @@ function createChatBubble(className, message) {
     const chatWindow = document.getElementById('chat-window');
     const chatBubble = document.createElement('div');
     const bubbleText = document.createElement('span');
-    const newMessage = message.replace(/\n\n/g, '<br><br>').replace(/\n/g, '<br>');
     chatBubble.classList.add(className);
-    bubbleText.innerHTML = newMessage;
+    bubbleText.innerHTML = message;
     chatWindow.prepend(chatBubble);
     chatBubble.appendChild(bubbleText);
     return bubbleText;
+}
+
+function streamText(chatBubble, text, delay) {
+    let i = 0;
+    const intervalId = setInterval(() => {
+        if (i < text.length) {
+            chatBubble.textContent = text.slice(0, i+1);
+            i++;
+        } else {
+            clearInterval(intervalId);
+        }
+    }, delay);
 }
 
 const clearButton = document.getElementById('clear-button');
@@ -91,6 +103,8 @@ function fetchModels() {
                 visionList.push(model);
             } else if (model.includes('embed')) {
                 embedList.push(model);
+            } else if (model.includes('hidden')) {
+                
             } else {
                 chatList.push(model);
             }

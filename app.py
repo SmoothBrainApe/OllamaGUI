@@ -1,4 +1,4 @@
-from flask import Flask, render_template, jsonify, request, Response
+from flask import Flask, render_template, jsonify, request
 from model import ChatModel
 import base64
 
@@ -16,18 +16,13 @@ def index():
 # API Endpoints
 
 
-@app.route("/chat/message", methods=["GET"])
+@app.route("/chat/message", methods=["POST"])
 def receive_message():
-    message = request.args.get("message")
-    if message:
-
-        def generate():
-            for word in mod.receive_user_message(message=message):
-                yield "data: {}\n\n".format(
-                    word.replace("\n", "\\n").replace("\n\n", "\\n\\n")
-                )
-
-        return Response(generate(), mimetype="text/event-stream")
+    payload = request.get_json()
+    if payload:
+        message = payload.get("message")
+        response = mod.receive_user_message(message=message)
+        return jsonify({"message": response})
     else:
         return jsonify({"message": "message cannot be empty"})
 

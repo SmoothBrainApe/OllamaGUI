@@ -42,7 +42,6 @@ class ChatModel:
                 "content": user_prompt,
             }
             self.chat_history.append(history_user_message)
-            complete_message = ""
 
             if self.uploaded_file:
                 img_ext = ["png", "jpg", "jpeg", "bmp", "gif"]
@@ -66,35 +65,32 @@ class ChatModel:
                         )
                         print(f"\n\n{reranked_query}")
 
-                    for word in self.chat.chat_loop(
+                    response = self.chat.chat_loop(
                         prompt=self.chat_history,
                         file=self.uploaded_file,
                         query_data=query_data,
-                    ):
-                        complete_message += word
-                        yield word
+                    )
                     history_response = {
                         "role": "assistant",
-                        "content": complete_message,
+                        "content": response,
                     }
                     self.chat_history.append(history_response)
+                    return response
                 elif file_ext in img_ext:
-                    for word in self.chat.chat_loop(
+                    response = self.chat.chat_loop(
                         prompt=self.chat_history, file=self.uploaded_file
-                    ):
-                        complete_message += word
-                        yield word
+                    )
                     history_response = {
                         "role": "assistant",
-                        "content": complete_message,
+                        "content": response,
                     }
                     self.chat_history.append(history_response)
+                    return response
             else:
-                for word in self.chat.chat_loop(prompt=self.chat_history):
-                    complete_message += word
-                    yield word
-                history_response = {"role": "assistant", "content": complete_message}
+                response = self.chat.chat_loop(prompt=self.chat_history)
+                history_response = {"role": "assistant", "content": response}
                 self.chat_history.append(history_response)
+                return response
         else:
             return "No Message received"
 
@@ -105,7 +101,8 @@ class ChatModel:
             if "moondream" not in model:
                 if "llava" not in model:
                     if "embed" not in model:
-                        self.chat_list.append(model)
+                        if "hidden" not in model:
+                            self.chat_list.append(model)
 
         if not self.chat_list:
             return "There are no models for chat. Please pull a model from Ollama"
