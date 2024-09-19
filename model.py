@@ -2,50 +2,35 @@ from backend.chat import OllamaChat
 from backend.database import Database
 from backend.docs_process import Documents
 from backend.utils import *
-import json
 import os
-import glob
 import ollama
-
-
-config_file = "config.json"
 
 
 class ChatModel:
     def __init__(self):
-        if not os.path.exists(config_file):
-            with open(config_file, "w") as f:
-                defaul_config = {
-                    "db_path": "database",
-                    "file": "temp/*",
-                    "chunk_size": 50,
-                }
-                json.dump(defaul_config, f)
-
-        with open(config_file, "r") as f:
-            self.config = json.load(f)
-
         self.chat_history = []
         self.chat = None
         self.vision_model = "moondream"
         self.embed_model = "nomic-embed-text"
         self.document = None
         self.db = None
-        self.uploaded_file = None
+        self.db_path = "database"
+        self.file_name = None
+        self.file_data = None
         self.chat_list = []
 
     def receive_user_message(self, message: str) -> str:
         user_prompt = str(message)
         if user_prompt:
-            history_user_message = {
-                "role": "user",
-                "content": user_prompt,
-            }
-            self.chat_history.append(history_user_message)
-
-            if self.uploaded_file:
+            if user_prompt.startswith("[RAG]"):
+                for_history = user_prompt[5:].strip()
+                history_user_message = {
+                    "role": "user",
+                    "content": for_history,
+                }
+                self.chat_history.append(history_user_message)
                 img_ext = ["png", "jpg", "jpeg", "bmp", "gif"]
-                file_ext = self.uploaded_file.split("/")[-1].split(".")[-1]
+                file_ext = self.file_name.split("/")[-1].split(".")[-1]
                 if file_ext not in img_ext:
                     if len(self.chat_history) == 1:
                         query_data = self.db.retrieval(user_prompt)
@@ -67,7 +52,7 @@ class ChatModel:
 
                     response = self.chat.chat_loop(
                         prompt=self.chat_history,
-                        file=self.uploaded_file,
+                        file=self.file_name,
                         query_data=query_data,
                     )
                     history_response = {
@@ -78,7 +63,7 @@ class ChatModel:
                     return response
                 elif file_ext in img_ext:
                     response = self.chat.chat_loop(
-                        prompt=self.chat_history, file=self.uploaded_file
+                        prompt=self.chat_history, file=self.file_data
                     )
                     history_response = {
                         "role": "assistant",
@@ -87,6 +72,11 @@ class ChatModel:
                     self.chat_history.append(history_response)
                     return response
             else:
+                history_user_message = {
+                    "role": "user",
+                    "content": user_prompt.strip(),
+                }
+                self.chat_history.append(history_user_message)
                 response = self.chat.chat_loop(prompt=self.chat_history)
                 history_response = {"role": "assistant", "content": response}
                 self.chat_history.append(history_response)
@@ -125,40 +115,23 @@ class ChatModel:
         self.vision_model = model
         return f"Vision model changed to {model}"
 
-    def uploaded_file(self, filename: str, decoded_contents: bytes) -> str:
-        if self.chat:
-            if filename and decoded_contents:
-                if glob.glob(self.config["file"]):
-                    os.remove(glob.glob(self.config["file"])[0])
-
-                doc_path = "temp"
-
-                if not os.path.exists(doc_path):
-                    os.makedirs(doc_path)
-
-                with open(os.path.join(doc_path, filename), "wb") as f:
-                    f.write(decoded_contents)
-
-                file_ext = filename.split(".")[-1]
-                self.uploaded_file = glob.glob(self.config["file"])[0]
-
-                img_ext = ["png", "jpg", "jpeg", "bmp", "gif"]
-                if file_ext not in img_ext:
-                    self.document = Documents(
-                        self.uploaded_file, self.config["chunk_size"]
-                    )
+    def uploaded_file(self, filename: str, bytes_data: bytes) -> str:
+        if filename and bytes_data:
+            self.file_name = filename
+            file_ext = filename.split(".")[-1]
+            img_ext = ["png", "jpg", "jpeg", "bmp", "gif"]
+            if file_ext not in img_ext:
+                if file_ext == "txt":
+                    decoded_contents = bytes_data.decode("utf-8")
+                    self.document = Documents(decoded_contents)
                     documents = self.document.cleaning_process()
-                    self.db = Database(
-                        self.config["db_path"], documents, self.embed_model
-                    )
+                    self.db = Database(self.db_path, documents, self.embed_model)
                     self.db.init_collection(filename)
                     self.db.embedding()
                     return f"File: {filename}, successfully uploaded"
-                elif file_ext in img_ext:
-                    return f"Image: {filename}, successfully uploaded"
-
-        else:
-            return "Choose a model first"
+            elif file_ext in img_ext:
+                self.file_data = bytes_data
+                return f"Image: {filename}, successfully uploaded"
 
     def display_modelfile(self, model_name: str) -> str:
         modelfile_path = "../modelfiles"

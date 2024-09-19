@@ -47,36 +47,33 @@ class OllamaChat:
                     messages.append(message)
         else:
             messages = prompt
-        response = self.chain_of_thought(messages)
-        # answer = ollama.chat(model=self.chat_model, messages=messages)
-        # response = answer["message"]["content"]
+        # response = self.chain_of_thought(messages)
+        answer = ollama.chat(model=self.chat_model, messages=messages)
+        response = answer["message"]["content"]
         return response
 
     def vision_model_chat(self, file):
-        with open(file, "rb") as i:
-            images = i.read()
-            model_list = display_models()
-            vision_model = self.vision_model
-            vision_model_count = 0
+        images = file
+        model_list = display_models()
+        vision_model = self.vision_model
+        vision_model_count = 0
 
-            for model in model_list:
-                if "llava" in model:
-                    vision_model_count += 1
-                if "moondream" in model:
-                    vision_model_count += 1
+        for model in model_list:
+            if "llava" in model:
+                vision_model_count += 1
+            if "moondream" in model:
+                vision_model_count += 1
 
-            if vision_model_count == 0 and self.vision_model is None:
-                default_vision_model = "moondream"
-                print(f"Downloading vision model: {default_vision_model}")
-                ollama.pull(default_vision_model)
-                print(f"Vision Model downloaded: {default_vision_model}")
-                vision_model = default_vision_model
-            prompt = "Describe the image with as much detail as you can"
-            response = ollama.generate(
-                model=vision_model, prompt=prompt, images=[images]
-            )
-            print(response["response"])
-            return response["response"]
+        if vision_model_count == 0 and self.vision_model is None:
+            default_vision_model = "moondream"
+            print(f"Downloading vision model: {default_vision_model}")
+            ollama.pull(default_vision_model)
+            print(f"Vision Model downloaded: {default_vision_model}")
+            vision_model = default_vision_model
+        prompt = "Describe the image with as much detail as you can"
+        response = ollama.generate(model=vision_model, prompt=prompt, images=[images])
+        print(response["response"])
+        return response["response"]
 
     def history_aware_query(self, prompt: list) -> str:
         message_history = prompt[:-1]

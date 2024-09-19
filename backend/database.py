@@ -51,7 +51,6 @@ class Database:
         for i, docs in enumerate(self.documents):
             try:
                 self.total_embeddings += 1
-                print(i)
                 print(self.total_embeddings)
                 embed_response = ollama.embeddings(model=self.embed_model, prompt=docs)
                 embed = embed_response["embedding"]

@@ -8,3 +8,5 @@ temp
 database
 todo.txt
 node_modules
+short.txt
+.gitignore

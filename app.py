@@ -1,6 +1,7 @@
 from flask import Flask, render_template, jsonify, request
 from model import ChatModel
 import base64
+import json
 
 app = Flask(__name__)
 mod = ChatModel()
@@ -72,14 +73,21 @@ def vision_model():
 
 @app.route("/chat/file/upload", methods=["POST"])
 def upload_file():
-    file = request.files.get("file")
-    filename = request.form.get("filename")
-    if file and filename:
-        decoded_contents = base64.b64decode(file.read())
-        response = mod.uploaded_file(filename, decoded_contents)
-        return jsonify({"message": response})
-    else:
-        return jsonify({"message": "file not uploaded."})
+    try:
+        data = request.get_json()
+        filename = data["filename"]
+        filedata = data["filedata"]
+
+        decoded_contents = base64.b64decode(filedata)
+
+        response = mod.uploaded_file(
+            filename=filename, decoded_contents=decoded_contents
+        )
+        print(response)
+
+        return jsonify({"message": "File received"})
+    except Exception as e:
+        return jsonify({"message": "Error uploading file.", "error": str(e)}), 500
 
 
 @app.route("/chat/modelfile/get", methods=["GET"])
